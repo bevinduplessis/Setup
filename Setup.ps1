@@ -8,10 +8,7 @@ Param(
   $MinimalSoftware,
   [switch]
   [Parameter()]
-  $NoWallpaper,
-  [switch]
-  [Parameter()]
-  $NoLockScreen
+  $NoWallpaper
 )
 Function Show-Progress # TODO: Update this to support standalone mode and task sequences
 {
@@ -119,7 +116,7 @@ Function Invoke-UpdateGroupPolicy
 }
 
 
-Function Invoke-SetupOffice2016
+Function Invoke-InstallMicrosoftOffice
 {
   [CmdletBinding()]
   Param (
@@ -371,13 +368,53 @@ Function Invoke-SetupShortcutsAsAdmin
   }
 }
 
+Function Stop-EdgePDF 
+{
+  #Stops edge from taking over as the default .PDF viewer    
+  Write-Output -InputObject 'Stopping Edge from taking over as the default .PDF viewer'
+  $NoPDF = 'HKCR:\.pdf'
+  $NoProgids = 'HKCR:\.pdf\OpenWithProgids'
+  $NoWithList = 'HKCR:\.pdf\OpenWithList' 
+  If (!(Get-ItemProperty $NoPDF  -Name NoOpenWith)) 
+  {
+    New-ItemProperty $NoPDF -Name NoOpenWith
+  }        
+  If (!(Get-ItemProperty $NoPDF  -Name NoStaticDefaultVerb)) 
+  {
+    New-ItemProperty $NoPDF  -Name NoStaticDefaultVerb
+  }        
+  If (!(Get-ItemProperty $NoProgids  -Name NoOpenWith)) 
+  {
+    New-ItemProperty $NoProgids  -Name NoOpenWith
+  }        
+  If (!(Get-ItemProperty $NoProgids  -Name NoStaticDefaultVerb)) 
+  {
+    New-ItemProperty $NoProgids  -Name NoStaticDefaultVerb
+  }        
+  If (!(Get-ItemProperty $NoWithList  -Name NoOpenWith)) 
+  {
+    New-ItemProperty $NoWithList  -Name NoOpenWith
+  }        
+  If (!(Get-ItemProperty $NoWithList  -Name NoStaticDefaultVerb)) 
+  {
+    New-ItemProperty $NoWithList  -Name NoStaticDefaultVerb
+  }
+            
+  #Appends an underscore '_' to the Registry key for Edge
+  $Edge = 'HKCR:\AppXd4nrz8ff68srnhf9t5a8sbjyar1cr723_'
+  If (Test-Path $Edge) 
+  {
+    Set-Item $Edge -Value AppXd4nrz8ff68srnhf9t5a8sbjyar1cr723_
+  }
+}
+
 Function Invoke-DisableServices
 {
   [CmdletBinding()]
   Param
   (
-    $services = @(
-      'diagnosticshub.standardcollector.service' # Microsoft (R) Diagnostics Hub Standard Collector Service
+    [string[]]$services = @(
+      'diagnosticshub.standardcollector.service' # Microsoft Diagnostics Hub Standard Collector Service
       'DiagTrack'                                # Diagnostics Tracking Service
       'dmwappushservice'                         # WAP Push Message Routing Service
       'HomeGroupListener'                        # HomeGroup Listener
@@ -392,7 +429,8 @@ Function Invoke-DisableServices
       'XboxNetApiSvc'                            # Xbox Live Networking Service
       'TrkWks'                                   # Distributed Link Tracking Client. Description: Maintains links between NTFS files within a computer or across computers in a network.
       'beep'                                     # Windows Beep Service, stops annoying beeps in powershell console
-    )
+    ),
+    [bool]$SkipXboxServices
   )
 	
   Begin {
@@ -405,24 +443,52 @@ Function Invoke-DisableServices
     {
       Foreach ($service in $services)
       {
-        Show-Progress -Message "Stopping Service and disabling [$service]" -Source $CmdletName
+        if($SkipXboxServices) 
+        {
+          if($service -ine 'XblAuthManager' -and $service -ine 'XblGameSave' -and $service -ine 'XboxNetApiSvc') 
+          {
+            Show-Progress -Message "Stopping Service and disabling [$service]" -Source $CmdletName
 			
-        Try 
-        {
-          $null = Set-Service -Name $service -StartupType Disabled -ErrorAction Stop
-        }
-        Catch 
-        {
-          Write-Log -EntryType Warning -Message "Unable to set [$service] to disabled"
-        }
+            Try 
+            {
+              $null = Set-Service -Name $service -StartupType Disabled -ErrorAction Stop
+            }
+            Catch 
+            {
+              Write-Log -EntryType Warning -Message "Unable to set [$service] to disabled"
+            }
 				
-        Try 
-        {
-          $null = Stop-Service -InputObject $service -ErrorAction Stop
+            Try 
+            {
+              $null = Stop-Service -InputObject $service -ErrorAction Stop
+            }
+            Catch 
+            {
+              Write-Log -EntryType Warning -Message "Unable to stop [$service]"
+            }
+          }
         }
-        Catch 
+        else 
         {
-          Write-Log -EntryType Warning -Message "Unable to stop [$service]"
+          Show-Progress -Message "Stopping Service and disabling [$service]" -Source $CmdletName
+			
+          Try 
+          {
+            $null = Set-Service -Name $service -StartupType Disabled -ErrorAction Stop
+          }
+          Catch 
+          {
+            Write-Log -EntryType Warning -Message "Unable to set [$service] to disabled"
+          }
+				
+          Try 
+          {
+            $null = Stop-Service -InputObject $service -ErrorAction Stop
+          }
+          Catch 
+          {
+            Write-Log -EntryType Warning -Message "Unable to stop [$service]"
+          }
         }
       }
     }
@@ -465,7 +531,7 @@ Function Invoke-SetIEDefaultSearchProvider
     $null = New-ItemProperty -Path "$SearchScopes\$Guid" -Name 'SuggestionsURLFallback' -PropertyType 'String' -Value 'http://clients5.google.com/complete/search?hl={language}&q={searchTerms}&client=ie8&inputencoding={inputEncoding}&outputencoding={outputEncoding}' -Force
     $null = New-ItemProperty -Path "$SearchScopes\$Guid" -Name 'TopResultURLFallback' -PropertyType 'String' -Value "$null" -Force
     $null = New-ItemProperty -Path "$SearchScopes\$Guid" -Name 'URL' -PropertyType 'String' -Value 'http://www.google.com/search?q={searchTerms}&sourceid=ie7&rls=com.microsoft:{language}:{referrer:source}&ie={inputEncoding?}&oe={outputEncoding?}' -Force
-    $null = New-ItemProperty -Path "$SearchScopes\$Guid" -Name 'DefaultScope' -PropertyType 'String' -Value "$guid" -Force 
+    $null = New-ItemProperty -Path "$SearchScopes\$Guid" -Name 'DefaultScope' -PropertyType 'String' -Value "$Guid" -Force 
 
     Write-Log -EntryType Information -Message 'Adding Google Search' -Source $CmdletName
 
@@ -481,7 +547,7 @@ Function Invoke-DisableScheduledTasks
   [CmdletBinding()]
   Param
   (
-    $tasks = @(
+    [string[]]$tasks = @(
       'Microsoft\Windows\AppID\SmartScreenSpecific'
       'Microsoft\Windows\Application Experience\Microsoft Compatibility Appraiser'
       'Microsoft\Windows\Application Experience\ProgramDataUpdater'
@@ -544,18 +610,19 @@ Function Invoke-SetPowerPlan
     [bool]$HighPerformance,
     [bool]$Balanced
   )
-  
-  if($HighPerformance) {
-  
-    $Filter = 'High performance'
-  
-  } else {
-    $Filter = 'Balanced'
-  }
 
   Begin {
     [string]$CmdletName = $PSCmdlet.MyInvocation.MyCommand.Name
     Write-FunctionHeaderOrFooter -CmdletName $CmdletName -CmdletBoundParameters $PSBoundParameters -Header
+     
+    if($HighPerformance) 
+    {
+      $Filter = 'High performance'
+    }
+    else 
+    {
+      $Filter = 'Balanced'
+    }
   }
 
   Process {
@@ -576,16 +643,16 @@ Function Invoke-SetPowerPlan
       Try 
       {
         Show-Progress -Message 'Activating [High Performance] power plan' -Source $CmdletName
-        $HighPerf = & "$env:windir\system32\powercfg.exe" -l | Select-Plan
+        $Plan = & "$env:windir\system32\powercfg.exe" -l | Select-Plan
         $CurrPlan = $(& "$env:windir\system32\powercfg.exe" -getactivescheme).split()[3]
-        if ($CurrPlan -ne $HighPerf) 
+        if ($CurrPlan -ne $Plan) 
         {
-          & "$env:windir\system32\powercfg.exe" -setactive $HighPerf
+          & "$env:windir\system32\powercfg.exe" -setactive $Plan
         }
       }
       Catch 
       {
-        Write-Log -EntryType Warning -Message 'Unable to set power plan to [High Performance]' -Source $CmdletName
+        Write-Log -EntryType Warning -Message "Unable to set power plan to '$Filter'" -Source $CmdletName
       }
     }
     else 
@@ -606,26 +673,22 @@ Function Invoke-InstallSoftware
   Param
   (
     [string[]]$SoftwareList = @(
+      'vcredist-all'
       'winscp'
       'ussf'
       'ffmpeg'
       'sudo'
       'googlechrome'
       'directx'
-      'origin'
-      'uplay'
       '7zip.install'
-      'autohotkey.install'
-      'ccenhancer' # https://raw.githubusercontent.com/MoscaDotTo/Winapp2/master/Winapp2.ini download to C:\Program Files\CCleaner alternative
+      #'ccenhancer' # https://raw.githubusercontent.com/MoscaDotTo/Winapp2/master/Winapp2.ini download to C:\Program Files\CCleaner alternative
       'ccleaner'
-      'chocolatey'
       'chocolatey-core.extension'
       'chocolatey-uninstall.extension'
       'chocolatey-visualstudio.extension'
       'chocolatey-windowsupdate.extension'
       'cpu-z.install'
       'discord'
-      'DotNet4.6.1'
       'ffmpeg'
       'geforce-game-ready-driver-win10'
       'git.install'
@@ -633,32 +696,20 @@ Function Invoke-InstallSoftware
       'grepwin'
       'irfanviewplugins'
       'irfanview'
-      'jdk8'
       'k-litecodecpackfull'
       'kodi'
       'nircmd'
-      'nodejs.install'
       'notepadplusplus.install'
       'Office365ProPlus'
       'PSWindowsUpdate'
       'putty.install'
-      'PyCharm-community'
+      'pycharm-community'
       'python2'
       'qbittorrent'
       'ipfilter-updater'
       'rsat'
       'Shotcut'
-      'streamlink'
-      'streamlink-twitch-gui'
       'sysinternals'
-      'vcredist2005'
-      'vcredist2008'
-      'vcredist2010'
-      'vcredist2012'
-      'vcredist2013'
-      'vcredist2015'
-      'visualstudio2017-installer'
-      'visualstudio2017community'
       'WhatsApp'
       'youtube-dl'
       'nuget.commandline'
@@ -699,12 +750,47 @@ Function Invoke-InstallSoftware
   }
 }
 
+Function Invoke-InstallCCEnhancer 
+{
+  Begin {
+    [string]$CmdletName = $PSCmdlet.MyInvocation.MyCommand.Name
+    Write-FunctionHeaderOrFooter -CmdletName $CmdletName -CmdletBoundParameters $PSBoundParameters -Header
+  }
+  
+  Process {
+  
+    if(Test-IsAdmin) 
+    {
+      if(Test-Path -Path 'C:\Program Files\CCleaner') 
+      {
+        Try 
+        {
+          Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/MoscaDotTo/Winapp2/master/Winapp2.ini' -OutFile 'C:\Program Files\CCleaner\Winapp2.ini'
+        } catch 
+        {
+          Write-Log -EntryType Warning  -Message 'Unable to download CCEnhancer winapp2.ini file'
+        }
+      } else 
+      {
+        Write-Log -EntryType Warning  -Message 'CCleaner is not installed'
+      }
+    } else 
+    {
+      Write-Log -EntryType Warning  -Message "User is not administrator skipping [$CmdletName]"
+    }
+
+  } End {
+    Write-FunctionHeaderOrFooter -CmdletName $CmdletName -Footer
+  }
+}
+
+
 Function Invoke-RemoveBuiltinApps
 {
   [CmdletBinding()]
   Param
   (
-    $apps = @(
+    [string[]]$apps = @(
       'Microsoft.Windows.CloudExperienceHost'
       'Microsoft.Windows.ShellExperienceHost'
       'Microsoft.AAD.BrokerPlugin'
@@ -921,105 +1007,6 @@ Function Copy-BackgroundImage
     Write-FunctionHeaderOrFooter -CmdletName $CmdletName -Footer
   }
 }
-
-Function Copy-LockScreenImage 
-{
-  [CmdletBinding()]
-  Param()
-
-  Begin {
-    [string]$CmdletName = $PSCmdlet.MyInvocation.MyCommand.Name
-    Write-FunctionHeaderOrFooter -CmdletName $CmdletName -CmdletBoundParameters $PSBoundParameters -Header
-  }
-
-  Process {
-
-    if(Test-IsAdmin) 
-    {
-      $File = 'img105.jpg'
-      $Destination = "$env:systemroot\WEB\Screen"
-      $Source = Join-Path -Path "$PSScriptRoot\LockScreen" -ChildPath $File
-
-      Write-Log -EntryType Information -Message "Taking ownership of $Destination" -Source $CmdletName
-      $acl = Get-Acl -Path $Destination
-      $Group = New-Object -TypeName System.Security.Principal.NTAccount -ArgumentList ('Builtin', 'Administrators')
-      $acl.SetOwner($Group)
-      Set-Acl -Path $Destination -AclObject $acl
-	
-      Write-Log -EntryType Information -Message "Changing permissions on $Destination folder" -Source $CmdletName 
-      $Permission = $Group, 'FullControl', 'Allow'
-      $AccessRule = New-Object -TypeName System.Security.AccessControl.FileSystemAccessRule -ArgumentList $Permission
-      $acl.SetAccessRule($AccessRule)
-      Set-Acl -Path $Destination -AclObject $acl
-	
-      Write-Log -EntryType Information -Message "Enabling permission inheritance on $Destination folder" -Source $CmdletName
-      $New = $Group, 'FullControl', 'ContainerInherit,ObjectInherit', 'None', 'Allow'
-      $AccessRule = New-Object -TypeName System.Security.AccessControl.FileSystemAccessRule -ArgumentList $New
-      $acl.SetAccessRule($AccessRule)
-
-      Set-Acl -Path $Destination -AclObject $acl
-      $Files = (Get-ChildItem -Path $Destination)
-	
-      Foreach ($File in $Files)
-      {
-        $Permission = $Group, 'FullControl', 'Allow'
-        $AccessRule = New-Object -TypeName System.Security.AccessControl.FileSystemAccessRule -ArgumentList $Permission
-        $acl.SetAccessRule($AccessRule)
-        $ACLFile = (Join-Path -Path $Destination -ChildPath $File)
-        Write-Log -EntryType Information -Message "Changing permissions on $ACLFile" -Source $CmdletName
-        Set-Acl -Path $ACLFile -AclObject $acl
-      }
-		
-      Copy-File -Path $Source -Destination $Destination
-    }
-    else 
-    {
-      Write-Log -EntryType Warning  -Message "User is not administrator skipping [$CmdletName]"
-    }
-  }
-
-  End {
-    Write-FunctionHeaderOrFooter -CmdletName $CmdletName -Footer
-  }
-}
-
-Function Invoke-SetupFileAssociations 
-{
-  [CmdletBinding()]
-  Param()
-
-  Begin {
-    [string]$CmdletName = $PSCmdlet.MyInvocation.MyCommand.Name
-    Write-FunctionHeaderOrFooter -CmdletName $CmdletName -CmdletBoundParameters $PSBoundParameters -Header
-  }
-	
-  Process {
-    if(Test-IsAdmin) 
-    {
-      Show-Progress -Message "Copying [$PSScriptRoot\FileAssociations\AppAssoc.xml] to [$env:ProgramData\Microsoft\Windows]" -Source $CmdletName
-		
-      Copy-File -Path "$PSScriptRoot\FileAssociations\AppAssoc.xml" -Destination "$env:ProgramData\Microsoft\Windows\AppAssoc.xml"
-		
-      Try 
-      {
-        & "$env:windir\system32\dism.exe" /online /Import-DefaultAppAssociations:"$env:ProgramData\Microsoft\Windows\AppAssoc.xml"
-      }
-      Catch 
-      {
-        Write-Log -EntryType Warning -Message 'Unable to execute DISM to setup file ssociations'
-      }
-    }
-    else 
-    {
-      Write-Log -EntryType Warning  -Message "User is not administrator skipping [$CmdletName]"
-    }
-  }
-	
-  End {
-    Write-FunctionHeaderOrFooter -CmdletName $CmdletName -Footer
-  }
-}
-
 Function Invoke-DisableWindowsThemeSounds
 {
   #-----------------------
@@ -1147,7 +1134,6 @@ Function Invoke-SetupTaskBarItemsCurrentUser
   <CustomTaskbarLayoutCollection>
     <defaultlayout:TaskbarLayout>
       <taskbar:TaskbarPinList>
-        <taskbar:DesktopApp DesktopApplicationLinkPath="%APPDATA%\Microsoft\Windows\Start Menu\Programs\Accessories\Internet Explorer.lnk"/>
         <taskbar:DesktopApp DesktopApplicationLinkPath="%APPDATA%\Microsoft\Windows\Start Menu\Programs\System Tools\File Explorer.lnk"/>
         <taskbar:DesktopApp DesktopApplicationLinkPath="%APPDATA%\Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar\Google Chrome.lnk"/>
       </taskbar:TaskbarPinList>
@@ -1322,44 +1308,17 @@ Function Invoke-SetupStartmenuCurrentUser
 
     Show-Progress -Message 'Setting up start menu shortcuts for user' -Source $CmdletName
 		
-    $startlayoutstruser = @'
-<LayoutModificationTemplate Version="1" xmlns="http://schemas.microsoft.com/Start/2014/LayoutModification"
-    xmlns:defaultlayout="http://schemas.microsoft.com/Start/2014/FullDefaultLayout"
-    xmlns:start="http://schemas.microsoft.com/Start/2014/StartLayout"
-    xmlns:taskbar="http://schemas.microsoft.com/Start/2014/TaskbarLayout">
+    $startlayoutstruser = @"
+<LayoutModificationTemplate Version="1" xmlns="http://schemas.microsoft.com/Start/2014/LayoutModification" xmlns:defaultlayout="http://schemas.microsoft.com/Start/2014/FullDefaultLayout" xmlns:start="http://schemas.microsoft.com/Start/2014/StartLayout" xmlns:taskbar="http://schemas.microsoft.com/Start/2014/TaskbarLayout">
   <LayoutOptions StartTileGroupCellWidth="6" />
   <DefaultLayoutOverride>
     <StartLayoutCollection>
       <defaultlayout:StartLayout GroupCellWidth="6" xmlns:defaultlayout="http://schemas.microsoft.com/Start/2014/FullDefaultLayout">
-        <start:Group Name="" xmlns:start="http://schemas.microsoft.com/Start/2014/StartLayout">
-          <start:DesktopApplicationTile Size="2x2" Column="0" Row="0" DesktopApplicationLinkPath="%ALLUSERSPROFILE%\Microsoft\Windows\Start Menu\Programs\System Tools\Control Panel.lnk" />
-          <start:DesktopApplicationTile Size="2x2" Column="0" Row="2" DesktopApplicationLinkPath="%ALLUSERSPROFILE%\Microsoft\Windows\Start Menu\Programs\Accessories\Snipping Tool.lnk" />
-          <start:Tile Size="2x2" Column="4" Row="2" AppUserModelID="windows.immersivecontrolpanel_cw5n1h2txyewy!microsoft.windows.immersivecontrolpanel" />
-          <start:Tile Size="2x2" Column="4" Row="0" AppUserModelID="Microsoft.WindowsAlarms_8wekyb3d8bbwe!App" />
-          <start:Tile Size="2x2" Column="2" Row="2" AppUserModelID="Microsoft.WindowsCalculator_8wekyb3d8bbwe!App" />
-          <start:DesktopApplicationTile Size="2x2" Column="0" Row="4" DesktopApplicationLinkPath="%ALLUSERSPROFILE%\Microsoft\Windows\Start Menu\Programs\System Tools\File Explorer.lnk" />
-          <start:DesktopApplicationTile Size="2x2" Column="2" Row="0" DesktopApplicationLinkPath="%ALLUSERSPROFILE%\Microsoft\Windows\Start Menu\Programs\Microsoft System Center\Configuration Manager\Software Center.lnk" />
-          <start:DesktopApplicationTile Size="2x2" Column="4" Row="4" DesktopApplicationLinkPath="%ALLUSERSPROFILE%\Microsoft\Windows\Start Menu\Programs\Word 2016.lnk" />
-          <start:DesktopApplicationTile Size="2x2" Column="0" Row="6" DesktopApplicationLinkPath="%ALLUSERSPROFILE%\Microsoft\Windows\Start Menu\Programs\Skype for Business 2016.lnk" />
-          <start:DesktopApplicationTile Size="2x2" Column="2" Row="6" DesktopApplicationLinkPath="%ALLUSERSPROFILE%\Microsoft\Windows\Start Menu\Programs\OneDrive for Business.lnk" />
-          <start:DesktopApplicationTile Size="2x2" Column="4" Row="6" DesktopApplicationLinkPath="%ALLUSERSPROFILE%\Microsoft\Windows\Start Menu\Programs\Outlook 2016.lnk" />
-          <start:DesktopApplicationTile Size="2x2" Column="2" Row="4" DesktopApplicationLinkPath="%ALLUSERSPROFILE%\Microsoft\Windows\Start Menu\Programs\Excel 2016.lnk" />
-        </start:Group>
-        <start:Group Name="" xmlns:start="http://schemas.microsoft.com/Start/2014/StartLayout">
-          <start:DesktopApplicationTile Size="2x2" Column="0" Row="0" DesktopApplicationLinkPath="%ALLUSERSPROFILE%\Microsoft\Windows\Start Menu\Programs\Accessories\Internet Explorer.lnk" />
-        </start:Group>
       </defaultlayout:StartLayout>
     </StartLayoutCollection>
   </DefaultLayoutOverride>
-    <CustomTaskbarLayoutCollection PinListPlacement="Replace">
-    <defaultlayout:TaskbarLayout>
-      <taskbar:TaskbarPinList>
-        <taskbar:DesktopApp DesktopApplicationLinkPath="%APPDATA%\Microsoft\Windows\Start Menu\Programs\Accessories\Internet Explorer.lnk"/>
-      </taskbar:TaskbarPinList>
-    </defaultlayout:TaskbarLayout>
-  </CustomTaskbarLayoutCollection>
-</LayoutModificationTemplate>
-'@
+  </LayoutModificationTemplate>
+"@
 
     Try 
     {
@@ -1942,8 +1901,21 @@ Function Invoke-ApplyRegistrySettingsCurrentUser
       Key         = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
       Name        = 'ShowSyncProviderNotifications'
       Value       = 0
-      Description = 'Disable showing sync provider notifications'
+      Description = 'Ads in File Explorer'
     }
+    @{
+      Key         = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
+      Name        = 'SubscribedContent-310093Enabled'
+      Value       = 0
+      Description = 'Show me the Windows welcome experience after updates and occasionally'
+    }
+    @{
+      Key         = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
+      Name        = 'SubscribedContent-338389Enabled'
+      Value       = 0
+      Description = 'Get tips, tricks, suggestions as you use Windows '
+    }
+    
   )
 
   # File Associations
@@ -2017,9 +1989,10 @@ Function Invoke-ApplyRegistrySettingsCurrentUser
   # Game DVR
   $registerKeys += @(
     @{
-      Key   = 'HKEY_CURRENT_USER\System\GameConfigStore'
-      Name  = 'GameDVR_Enabled'
-      Value = 0
+      Key         = 'HKEY_CURRENT_USER\System\GameConfigStore'
+      Name        = 'GameDVR_Enabled'
+      Value       = 0
+      Description = 'Disable GameDVR'
     }
     @{
       Key         = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\GameDVR'
@@ -2043,25 +2016,61 @@ Function Invoke-ApplyRegistrySettingsCurrentUser
       Value       = 0
       Description = 'Disable microsoft shoehorning apps quietly into your profile'
     }
+    @{
+      Key         = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'
+      Name        = 'SubscribedContent-338393Enabled'
+      Value       = 0
+      Description = 'Show suggested content in settings'
+    }
+    @{
+      Key         = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'
+      Name        = 'SubscribedContent-353694Enabled'
+      Value       = 0
+      Description = 'Show suggested content in settings'
+    }
+    @{
+      Key         = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'
+      Name        = 'SubscribedContent-338388Enabled'
+      Value       = 0
+      Description = 'Show suggestions occasionally'
+    }
+    @{
+      Key         = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'
+      Name        = 'SubscribedContent-353698Enabled'
+      Value       = 0
+      Description = 'Show suggestions in timeline'
+    }
   )
 				
   # Lockscreen suggestions, rotating pictures and pre-installed apps
   $registerKeys += @(
     @{
-      Key         = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager\SoftLandingEnabled'
+      Key         = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'
       Name        = 'SoftLandingEnabled'
       Value       = 0
       Description = 'Disable Lockscreen suggestions'
     }
     @{
       Key         = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'
-      Name        = 'RotatingLockScreenEnable'
+      Name        = 'RotatingLockScreenEnabled'
+      Value       = 0
+      Description = 'Disable Lockscreen rotating pictures'
+    }
+    @{
+      Key         = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'
+      Name        = 'RotatingLockScreenOverlayEnabled'
       Value       = 0
       Description = 'Disable Lockscreen rotating pictures'
     }
     @{
       Key         = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'
       Name        = 'PreInstalledAppsEnabled'
+      Value       = 0
+      Description = 'Disable preinstalled apps, Minecraft and Twitter etc'
+    }
+    @{
+      Key         = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'
+      Name        = 'PreInstalledAppsEverEnabled'
       Value       = 0
       Description = 'Disable preinstalled apps, Minecraft and Twitter etc'
     }
@@ -2075,10 +2084,15 @@ Function Invoke-ApplyRegistrySettingsCurrentUser
       Name  = 'ContentDeliveryAllowed'
       Value = 0
     }
+    @{
+      Key   = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'
+      Name  = 'SubscribedContentEnabled'
+      Value = 0
+    }
   )
 		
   # Disable SmartScreen Filter
-  $edge = (Get-AppxPackage -AllUsers -Name 'Microsoft.MicrosoftEdge').PackageFamilyName
+  $Edge = (Get-AppxPackage -AllUsers -Name 'Microsoft.MicrosoftEdge').PackageFamilyName
   $registerKeys += @(
     @{
       Key         = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\AppHost'
@@ -2087,12 +2101,12 @@ Function Invoke-ApplyRegistrySettingsCurrentUser
       Description = 'Disable SmartScreen Filter'
     }
     @{
-      Key   = "HKEY_CURRENT_USER\SOFTWARE\Classes\Local Settings\Software\Microsoft\Windows\CurrentVersion\AppContainer\Storage\$edge\MicrosoftEdge\PhishingFilter"
+      Key   = "HKEY_CURRENT_USER\SOFTWARE\Classes\Local Settings\Software\Microsoft\Windows\CurrentVersion\AppContainer\Storage\$Edge\MicrosoftEdge\PhishingFilter"
       Name  = 'EnabledV9'
       Value = 0
     }
     @{
-      Key   = "HKEY_CURRENT_USER\SOFTWARE\Classes\Local Settings\Software\Microsoft\Windows\CurrentVersion\AppContainer\Storage\$edge\MicrosoftEdge\PhishingFilter"
+      Key   = "HKEY_CURRENT_USER\SOFTWARE\Classes\Local Settings\Software\Microsoft\Windows\CurrentVersion\AppContainer\Storage\$Edge\MicrosoftEdge\PhishingFilter"
       Name  = 'PreventOverride'
       Value = 0
     }
@@ -2158,6 +2172,28 @@ Function Invoke-ApplyRegistrySettingsCurrentUser
       Value = 0
     }
   )
+  
+  # Privacy Settings
+  $registerKeys += @(
+    @{
+      Key         = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Privacy'
+      Name        = 'TailoredExperiencesWithDiagnosticDataEnabled'
+      Value       = 0
+      Description = 'Disable windows feedback submission'
+    }
+    @{
+      Key         = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\CDP'
+      Name        = 'RomeSdkChannelUserAuthzPolicy'
+      Value       = 0
+      Description = 'Let apps on other devices open messages and apps on this device - Shared Experiences settings'
+    }
+    @{
+      Key         = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\CDP'
+      Name        = 'CdpSessionUserAuthzPolicy'
+      Value       = 0
+      Description = 'Let apps on other devices open messages and apps on this device - Shared Experiences settings'
+    }
+  )
 				
   # Stopping Cortana / Microsoft from getting to know you
   $registerKeys += @(
@@ -2198,8 +2234,37 @@ Function Invoke-ApplyRegistrySettingsCurrentUser
       Description = 'Disabling Cortana and Bing search user settings'
     }
     @{
+      Key         = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Search'
+      Name        = 'CanCortanaBeEnabled'
+      Value       = 0
+      Description = 'Disabling Cortana and Bing search user settings'
+    }
+    @{
+      Key         = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Search'
+      Name        = 'DeviceHistoryEnabled'
+      Value       = 0
+      Description = 'Disabling Cortana and Bing search user settings'
+    }
+    @{
+      Key         = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Search'
+      Name        = 'CortanaConsent'
+      Value       = 0
+      Description = 'Disabling Cortana and Bing search user settings'
+    }
+    @{
+      Key         = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Search'
+      Name        = 'CortanaInAmbientMode'
+      Value       = 0
+      Description = 'Disabling Cortana and Bing search user settings'
+    }
+    @{
       Key   = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Search'
       Name  = 'SearchboxTaskbarMode'
+      Value = 0
+    }
+    @{
+      Key   = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Speech_OneCore\Preferences'
+      Name  = 'VoiceActivationEnableAboveLockscreen'
       Value = 0
     }
     @{
@@ -2415,6 +2480,12 @@ Function Invoke-ApplyRegistrySettingsLocalMachine
           Description = 'Disable previous versions tab'
         }
         @{
+          Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer'
+          Name        = 'DisableEdgeDesktopShortcutCreation'
+          Value       = 1
+          Description = 'Disable Edge desktop shortcut'
+        }
+        @{
           Key         = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\lfsvc\Service\Configuration'
           Name        = 'Status'
           Value       = 0
@@ -2424,6 +2495,24 @@ Function Invoke-ApplyRegistrySettingsLocalMachine
           Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Sensor\Overrides\{BFA794E4-F964-4FDB-90F6-51056BFE4B44}'
           Name        = 'SensorPermissionState'
           Value       = 0
+          Description = 'Disable Location Tracking'
+        }
+        @{
+          Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\DeviceAccess\Global\{BFA794E4-F964-4FDB-90F6-51056BFE4B44}'
+          Name        = 'Value'
+          Value       = 0
+          Description = 'Disable Location Tracking'
+        }
+        @{
+          Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\DeviceAccess\Global\{E6AD100E-5F4E-44CD-BE0F-2265D88D14F5}'
+          Name        = 'Value'
+          Value       = 0
+          Description = 'Disable Location Tracking'
+        }
+        @{
+          Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\location'
+          Name        = 'Value'
+          Value       = 'Deny'
           Description = 'Disable Location Tracking'
         }
         @{
@@ -2520,8 +2609,14 @@ Function Invoke-ApplyRegistrySettingsLocalMachine
         }
         @{
           Key   = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\GameDVR'
-          Name  = 'AllowgameDVR'
+          Name  = 'AllowGameDVR'
           Value = 0
+        }
+        @{
+          Key         = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\xbgm'
+          Name        = 'Start'
+          Value       = 4
+          Description = 'Disable Game Monitoring Service'
         }
       )
 
@@ -2857,7 +2952,7 @@ Function Invoke-ApplyRegistrySettingsLocalMachine
 				
       $registerKeys += @(
         @{
-          Key         = 'SOFTWARE\Policies\Microsoft\WindowsStore'
+          Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\WindowsStore'
           Name        = 'AutoDownload'
           Value       = 2
           Description = 'Turn off Automatic download/install of app updates'
@@ -2892,6 +2987,12 @@ Function Invoke-ApplyRegistrySettingsLocalMachine
           Name        = 'ARSOUserConsent'
           Value       = 2
           Description = 'Prevent using sign-in info to automatically finish setting up after an update'
+        }
+        @{
+          Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Diagnostics\DiagTrack\EventTranscriptKey'
+          Name        = 'EnableEventTranscript'
+          Value       = 1
+          Description = 'Enable diagnostic data viewer'
         }
       )
 					
@@ -2936,15 +3037,27 @@ Function Invoke-ApplyRegistrySettingsLocalMachine
           Description = 'Windows Defender Sample Submission'
         }
         @{
+          Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\DeliveryOptimization'
+          Name        = 'SystemSettingsDownloadMode'
+          Value       = 3
+          Description = 'Restrict Windows Update Peer to Peer only to local network'
+        }
+        @{
+          Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\DeliveryOptimization\Config'
+          Name        = 'DownloadMode'
+          Value       = 1
+          Description = 'Restrict Windows Update Peer to Peer only to local network'
+        }
+        @{
           Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\DeliveryOptimization\Config'
           Name        = 'DODownloadMode'
           Value       = 1
           Description = 'Restrict Windows Update Peer to Peer only to local network'
         }
         @{
-          Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\DeliveryOptimization'
-          Name        = 'SystemSettingsDownloadMode'
-          Value       = 3
+          Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\DeliveryOptimization\Settings'
+          Name        = 'DownloadMode'
+          Value       = 1
           Description = 'Restrict Windows Update Peer to Peer only to local network'
         }
       )
@@ -3108,28 +3221,30 @@ Function Invoke-ApplyRegistrySettingsLocalMachine
           Value       = 0
           Description = 'Data Collection disable pre-release features and settings'
         }
-
         @{
           Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\DataCollection'
           Name        = 'DoNotShowFeedbackNotifications'
           Value       = 1
           Description = 'Data Collection Do not show feedback notifications'
         }
-
+        @{
+          Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Explorer'
+          Name        = 'ShowRunasDifferentuserinStart'
+          Value       = 1
+          Description = 'Add Run as different user to context menu'
+        }
         @{
           Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\LocationAndSensors'
           Name        = 'DisableLocation'
           Value       = 1
           Description = 'Location and Sensors turn off location'
         }
-
         @{
           Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\LocationAndSensors'
           Name        = 'DisableSensors'
           Value       = 1
           Description = 'Location and Sensors Turn off Sensors'
         }
-
         @{
           Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\MicrosoftEdge\Main'
           Name        = 'DoNotTrack'
@@ -3255,40 +3370,6 @@ Function Invoke-ApplyRegistrySettingsLocalMachine
         }
       )
 
-			
-      if(!($NoLockScreen.IsPresent)) 
-      {
-        $registerKeys += @(
-          @{
-            Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Personalization'
-            Name        = 'LockScreenImage'
-            Value       = "$env:systemroot\Web\Screen\img105.jpg"
-            Description = 'Set LockScreen Image'
-          }
-          @{
-            Key         = 'HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\Windows\Personalization'
-            Name        = 'LockScreenOverlaysDisabled'
-            Value       = 1
-            Description = 'Disable Lockscreen advertisements'
-          }
-          @{
-            Key   = 'HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\Windows\Personalization'
-            Name  = 'PersonalColors_Background'
-            Value = '#000000'
-          }
-          @{
-            Key   = 'HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\Windows\Personalization'
-            Name  = 'PersonalColors_Accent'
-            Value = '#00bbff'
-          }
-          @{
-            Key   = 'HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\Windows\System'
-            Name  = 'DisableLockScreenAppNotifications'
-            Value = 1
-          }
-        )
-      }
-
       $registerKeys += @(
         @{
           Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\FolderDescriptions\{a0c69a99-21c8-4671-8703-7934162fcf1d}\PropertyBag'
@@ -3386,16 +3467,9 @@ Function Invoke-ApplyRegistrySettingsLocalMachine
   }
 }
 
-Function Invoke-SetBackgroundLockScreen 
+Function Disable-8dot3FileNames
 {
-  [CmdletBinding()]
-  param()
-	
-  Show-Progress -Message 'Applying lockscreen' -Source $CmdletName
-  Copy-LockScreenImage
-	
-  Show-Progress -Message 'Applying background' -Source $CmdletName
-  Copy-BackgroundImage
+  $null = & "$env:windir\system32\fsutil.exe" behavior set Disable8dot3 1
 }
 
 Function Set-PageFile 
@@ -3641,9 +3715,9 @@ Function Set-PageFileSize
     }
     try 
     {
-      New-CimInstance -ClassName Win32_PageFileSetting -Property  @{
+      $null = New-CimInstance -ClassName Win32_PageFileSetting -Property  @{
         Name = "$($DriveLetter):\pagefile.sys"
-      } -ErrorAction Stop | Out-Null
+      } -ErrorAction Stop
       
       # http://msdn.microsoft.com/en-us/library/windows/desktop/aa394245%28v=vs.85%29.aspx            
       Get-CimInstance -ClassName Win32_PageFileSetting -Filter "SettingID='pagefile.sys @ $($DriveLetter):'" -ErrorAction Stop | Set-CimInstance -Property @{
@@ -3660,9 +3734,6 @@ Function Set-PageFileSize
   }
   End {}
 }
-
-
-
 Function Disable-OptionalWindowsFeatures 
 {
   [CmdletBinding()]
@@ -3675,10 +3746,10 @@ Function Disable-OptionalWindowsFeatures
 	
   Process {
     Show-Progress -Message 'Uninstalling Windows Media Player...' -Source $CmdletName
-    Disable-WindowsOptionalFeature -Online -FeatureName 'WindowsMediaPlayer' -NoRestart -WarningAction SilentlyContinue | Out-Null
+    $null = Disable-WindowsOptionalFeature -Online -FeatureName 'WindowsMediaPlayer' -NoRestart -WarningAction SilentlyContinue
 		
     Show-Progress -Message 'Uninstalling Work Folders Client...' -Source $CmdletName
-    Disable-WindowsOptionalFeature -Online -FeatureName 'WorkFolders-Client' -NoRestart -WarningAction SilentlyContinue | Out-Null
+    $null = Disable-WindowsOptionalFeature -Online -FeatureName 'WorkFolders-Client' -NoRestart -WarningAction SilentlyContinue
   }
 
   End {
@@ -3690,79 +3761,137 @@ Function Disable-OptionalWindowsFeatures
 Function Enable-F8BootMenu 
 {
   # Enable F8 boot menu options
-  & "$env:windir\system32\bcdedit.exe" /set `{current`} bootmenupolicy Legacy | Out-Null
+  $null = & "$env:windir\system32\bcdedit.exe" /set `{current`} bootmenupolicy Legacy
+}
+
+Function Disable-StartupRecovery 
+{
+  Write-Verbose -Message 'Disable-StartupRecovery'
+  $null = & "$env:windir\system32\bcdedit.exe" /set recoveryenabled No
 }
 
 Function Set-DEPOptOut 
 {
   # Set Data Execution Prevention (DEP) policy to OptOut
-  & "$env:windir\system32\bcdedit.exe" /set `{current`} nx OptOut | Out-Null
+  $null = & "$env:windir\system32\bcdedit.exe" /set `{current`} nx OptOut
+}
+
+
+Function Remove-Keys 
+{
+  [CmdletBinding()]
+            
+  Param()
+        
+  #These are the registry keys that it will delete.
+            
+  $Keys = @(
+            
+    #Remove Background Tasks
+    'HKCR:\Extensions\ContractId\Windows.BackgroundTasks\PackageId\46928bounde.EclipseManager_2.2.4.51_neutral__a5h4egax66k6y'
+    'HKCR:\Extensions\ContractId\Windows.BackgroundTasks\PackageId\ActiproSoftwareLLC.562882FEEB491_2.6.18.18_neutral__24pqs290vpjk0'
+    'HKCR:\Extensions\ContractId\Windows.BackgroundTasks\PackageId\Microsoft.MicrosoftOfficeHub_17.7909.7600.0_x64__8wekyb3d8bbwe'
+    'HKCR:\Extensions\ContractId\Windows.BackgroundTasks\PackageId\Microsoft.PPIProjection_10.0.15063.0_neutral_neutral_cw5n1h2txyewy'
+    'HKCR:\Extensions\ContractId\Windows.BackgroundTasks\PackageId\Microsoft.XboxGameCallableUI_1000.15063.0.0_neutral_neutral_cw5n1h2txyewy'
+    'HKCR:\Extensions\ContractId\Windows.BackgroundTasks\PackageId\Microsoft.XboxGameCallableUI_1000.16299.15.0_neutral_neutral_cw5n1h2txyewy'
+            
+    #Windows File
+    'HKCR:\Extensions\ContractId\Windows.File\PackageId\ActiproSoftwareLLC.562882FEEB491_2.6.18.18_neutral__24pqs290vpjk0'
+            
+    #Registry keys to delete if they aren't uninstalled by RemoveAppXPackage/RemoveAppXProvisionedPackage
+    'HKCR:\Extensions\ContractId\Windows.Launch\PackageId\46928bounde.EclipseManager_2.2.4.51_neutral__a5h4egax66k6y'
+    'HKCR:\Extensions\ContractId\Windows.Launch\PackageId\ActiproSoftwareLLC.562882FEEB491_2.6.18.18_neutral__24pqs290vpjk0'
+    'HKCR:\Extensions\ContractId\Windows.Launch\PackageId\Microsoft.PPIProjection_10.0.15063.0_neutral_neutral_cw5n1h2txyewy'
+    'HKCR:\Extensions\ContractId\Windows.Launch\PackageId\Microsoft.XboxGameCallableUI_1000.15063.0.0_neutral_neutral_cw5n1h2txyewy'
+    'HKCR:\Extensions\ContractId\Windows.Launch\PackageId\Microsoft.XboxGameCallableUI_1000.16299.15.0_neutral_neutral_cw5n1h2txyewy'
+            
+    #Scheduled Tasks to delete
+    'HKCR:\Extensions\ContractId\Windows.PreInstalledConfigTask\PackageId\Microsoft.MicrosoftOfficeHub_17.7909.7600.0_x64__8wekyb3d8bbwe'
+            
+    #Windows Protocol Keys
+    'HKCR:\Extensions\ContractId\Windows.Protocol\PackageId\ActiproSoftwareLLC.562882FEEB491_2.6.18.18_neutral__24pqs290vpjk0'
+    'HKCR:\Extensions\ContractId\Windows.Protocol\PackageId\Microsoft.PPIProjection_10.0.15063.0_neutral_neutral_cw5n1h2txyewy'
+    'HKCR:\Extensions\ContractId\Windows.Protocol\PackageId\Microsoft.XboxGameCallableUI_1000.15063.0.0_neutral_neutral_cw5n1h2txyewy'
+    'HKCR:\Extensions\ContractId\Windows.Protocol\PackageId\Microsoft.XboxGameCallableUI_1000.16299.15.0_neutral_neutral_cw5n1h2txyewy'
+               
+    #Windows Share Target
+    'HKCR:\Extensions\ContractId\Windows.ShareTarget\PackageId\ActiproSoftwareLLC.562882FEEB491_2.6.18.18_neutral__24pqs290vpjk0'
+  )
+        
+  #This writes the output of each key it is removing and also removes the keys listed above.
+  ForEach ($key in $Keys) 
+  {
+    Write-Output -InputObject "Removing $key from registry"
+    Remove-Item $key -Recurse
+  }
 }
 
 
 
 Function Disable-SMBv1
+{
+  Try 
   {
-    Try 
-    {
-      [string]$OperatingSystemVersion = (Get-WmiObject -Class Win32_OperatingSystem).Version
-      switch -Regex ($OperatingSystemVersion) {
-        '(^10\.0.*|^6\.3.*)'
+    [string]$OperatingSystemVersion = (Get-WmiObject -Class Win32_OperatingSystem).Version
+    switch -Regex ($OperatingSystemVersion) {
+      '(^10\.0.*|^6\.3.*)'
+      {
+        # Windows 8.1 / Server 2012 R2 / Windows 10 / Server 2016
+        # SMB1 Server Settings
+        if ((Get-SmbServerConfiguration).EnableSMB1Protocol) 
         {
-          # Windows 8.1 / Server 2012 R2 / Windows 10 / Server 2016
-          # SMB1 Server Settings
-          if ((Get-SmbServerConfiguration).EnableSMB1Protocol) 
-          {
-            Set-SmbServerConfiguration -EnableSMB1Protocol $false -Force
-          }
-          # SMB1 Client Settings
-          if (((Get-WindowsOptionalFeature -Online -FeatureName SMB1Protocol).State) -match 'Enable(d|Pending)') 
-          {
-            Disable-WindowsOptionalFeature -Online -FeatureName SMB1Protocol -NoRestart
-          }
+          Set-SmbServerConfiguration -EnableSMB1Protocol $false -Force
         }
-        '^6\.2.*'
+        # SMB1 Client Settings
+        if (((Get-WindowsOptionalFeature -Online -FeatureName SMB1Protocol).State) -match 'Enable(d|Pending)') 
         {
-          # Windows 8 / Server 2012
-          # SMB1 Server Settings
-          if ((Get-SmbServerConfiguration).EnableSMB1Protocol) 
-          {
-            Set-SmbServerConfiguration -EnableSMB1Protocol $false -Force
-          }
-          # SMB1 Client Settings
-          if ((& "$env:windir\system32\sc.exe" qc lanmanworkstation) -match 'MRxSmb10') 
-          {
-            Start-Process -FilePath "$env:windir\System32\sc.exe" -ArgumentList 'config lanmanworkstation depend= bowser/mrxsmb20/nsi' -WindowStyle Hidden
-            Start-Process -FilePath "$env:windir\System32\sc.exe" -ArgumentList 'config mrxsmb10 start= disabled' -WindowStyle Hidden
-          }
-        }
-        '^6\.(0|1).*'
-        {
-          # Windows Vista / Server 2008 / Windows 7 / Server 2008R2
-          # SMB1 Server Settings
-          if (((Get-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters'-Name SMB1 -ErrorAction SilentlyContinue).SMB1) -ne '0') 
-          {
-            Set-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters' -Name SMB1 -Type DWORD -Value 0 -Force -ErrorAction SilentlyContinue
-          }
-          # SMB1 Client Settings
-          if ((& "$env:windir\system32\sc.exe" qc lanmanworkstation) -match 'MRxSmb10') 
-          {
-            Start-Process -FilePath "$env:windir\System32\sc.exe" -ArgumentList 'config lanmanworkstation depend= bowser/mrxsmb20/nsi' -WindowStyle Hidden
-            Start-Process -FilePath "$env:windir\System32\sc.exe" -ArgumentList 'config mrxsmb10 start= disabled' -WindowStyle Hidden
-          }
-        }
-        default
-        {
-          Throw 'Unsupported Operating System'
+          Disable-WindowsOptionalFeature -Online -FeatureName SMB1Protocol -NoRestart
         }
       }
-    }
-    Catch 
-    {
-      $LastError = $Error | Select-Object -First 1 -ExpandProperty Exception | Select-Object -ExpandProperty Message
-        Write-Warning -Message $LastError
+      '^6\.2.*'
+      {
+        # Windows 8 / Server 2012
+        # SMB1 Server Settings
+        if ((Get-SmbServerConfiguration).EnableSMB1Protocol) 
+        {
+          Set-SmbServerConfiguration -EnableSMB1Protocol $false -Force
+        }
+        # SMB1 Client Settings
+        if ((& "$env:windir\system32\sc.exe" qc lanmanworkstation) -match 'MRxSmb10') 
+        {
+          Start-Process -FilePath "$env:windir\System32\sc.exe" -ArgumentList 'config lanmanworkstation depend= bowser/mrxsmb20/nsi' -WindowStyle Hidden
+          Start-Process -FilePath "$env:windir\System32\sc.exe" -ArgumentList 'config mrxsmb10 start= disabled' -WindowStyle Hidden
+        }
+      }
+      '^6\.(0|1).*'
+      {
+        # Windows Vista / Server 2008 / Windows 7 / Server 2008R2
+        # SMB1 Server Settings
+        if (((Get-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters'-Name SMB1 -ErrorAction SilentlyContinue).SMB1) -ne '0') 
+        {
+          Set-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters' -Name SMB1 -Type DWORD -Value 0 -Force -ErrorAction SilentlyContinue
+        }
+        # SMB1 Client Settings
+        if ((& "$env:windir\system32\sc.exe" qc lanmanworkstation) -match 'MRxSmb10') 
+        {
+          Start-Process -FilePath "$env:windir\System32\sc.exe" -ArgumentList 'config lanmanworkstation depend= bowser/mrxsmb20/nsi' -WindowStyle Hidden
+          Start-Process -FilePath "$env:windir\System32\sc.exe" -ArgumentList 'config mrxsmb10 start= disabled' -WindowStyle Hidden
+        }
+      }
+      default
+      {
+        Throw 'Unsupported Operating System'
+      }
     }
   }
+  Catch 
+  {
+    $LastError = $Error |
+    Select-Object -First 1 -ExpandProperty Exception |
+    Select-Object -ExpandProperty Message
+    Write-Warning -Message $LastError
+  }
+}
 
 
 Function Disable-AutoLogger 
@@ -3773,7 +3902,7 @@ Function Disable-AutoLogger
   {
     Remove-Item -Path "$autoLoggerDir\AutoLogger-Diagtrack-Listener.etl"
   }
-  & "$env:windir\system32\icacls.exe" $autoLoggerDir /deny SYSTEM:`(OI`)`(CI`)F | Out-Null
+  $null = & "$env:windir\system32\icacls.exe" $autoLoggerDir /deny SYSTEM:`(OI`)`(CI`)F
 }
 
 Function Invoke-Setup
@@ -3803,17 +3932,17 @@ Function Invoke-Setup
       Show-Progress -Message 'Disabling desktop web search results' -Source $CmdletName
       Invoke-SetWindowsSearchWebResults
 			
-      Show-Progress -Message 'Disabling updating group policies' -Source $CmdletName
+      Show-Progress -Message 'Updating group policies' -Source $CmdletName
       Invoke-UpdateGroupPolicy
 			
       Show-Progress -Message 'Disabling unneeded background services' -Source $CmdletName
       Invoke-DisableBackgroundServices
 			
-      #Show-Progress -Message 'Applying start menu settings' -Source $CmdletName
-      #Invoke-SetupStartmenuCurrentUser
+      Show-Progress -Message 'Creates empty start menu' -Source $CmdletName
+      Invoke-SetupStartmenuCurrentUser
 			
-      #Show-Progress -Message 'Applying taskbar settings' -Source $CmdletName
-      #Invoke-SetupTaskBarItemsCurrentUser
+      Show-Progress -Message 'Applying taskbar settings' -Source $CmdletName
+      Invoke-SetupTaskBarItemsCurrentUser
 			
       Show-Progress -Message 'Applying user registry settings' -Source $CmdletName
       Invoke-ApplyRegistrySettingsCurrentUser
@@ -3825,7 +3954,7 @@ Function Invoke-Setup
       #  Computer settings functions (Requires Admin Rights)
       #------------------------------------------------------
       Show-Progress -Message 'Applying power settings' -Source $CmdletName
-      Invoke-SetPowerPlan
+      Invoke-SetPowerPlan -HighPerformance $true
     
       Show-Progress -Message 'Set admin shortcuts to always run as administrator' -Source $CmdletName
       Invoke-SetupShortcutsAsAdmin
@@ -3838,15 +3967,6 @@ Function Invoke-Setup
     
       Show-Progress -Message 'Removing built in printers' -Source $CmdletName
       Invoke-RemoveBuiltInPrinters
-
-      #Show-Progress -Message 'Setting up background and lockscreen' -Source $CmdletName
-      #Invoke-SetBackgroundLockScreen
-   
-      #Show-Progress -Message 'Applying start menu' -Source $CmdletName
-      #Invoke-SetupStartmenuDefaultUsers
-
-      #Show-Progress -Message 'Applying taskbar layout' -Source $CmdletName
-      #Invoke-SetupTaskBarItemsDefaultUsers
     
       Show-Progress -Message 'Adding RunOnceEx for all users' -Source $CmdletName
       Invoke-SetupRunOnce
@@ -3854,19 +3974,15 @@ Function Invoke-Setup
       Show-Progress -Message 'Updating group policies' -Source $CmdletName
       Invoke-UpdateGroupPolicy
 
-      #TODO: Replace this with built-in function and zip package
       Invoke-WebRequest -Uri https://chocolatey.org/install.ps1 -UseBasicParsing | Invoke-Expression
-
-      #Show-Progress -Message 'Getting site location details for package management' -Source $CmdletName
-      #. "$PSScriptRoot\Set-ServerAddress.ps1"
-
-      Show-Progress -Message 'Setting chocolatey source' -Source $CmdletName
-      Invoke-SetChocolateySource -Source Internet
 
       Show-Progress -Message 'Installing software' -Source $CmdletName
       Invoke-InstallSoftware
+      
+      Show-Progress -Message 'Install CCEnhancer' -Source $CmdletName
+      Invoke-InstallCCEnhancer 
 
-      Show-Progress -Message 'Disabling un-needed scheduled tasks' -Source $CmdletName 
+      Show-Progress -Message 'Disabling unneeded scheduled tasks' -Source $CmdletName 
       Invoke-DisableScheduledTasks
 
       Show-Progress -Message 'Adding powershell to right click context menu' -Source $CmdletName
@@ -3875,9 +3991,6 @@ Function Invoke-Setup
 				
       Show-Progress -Message 'Adding Windows Features' -Source $CmdletName
       Invoke-AddWindowsFeatures
-				
-      #Show-Progress -Message 'Setting Windows File Associations' -Source $CmdletName
-      #Invoke-SetupFileAssociations
 			
       Show-Progress -Message 'Applying system registry settings' -Source $CmdletName
       Invoke-ApplyRegistrySettingsLocalMachine
@@ -3887,129 +4000,29 @@ Function Invoke-Setup
 			
       Show-Progress -Message 'Setting Data Execution Prevention (DEP) policy to OptOut...' -Source $CmdletName
       Set-DEPOptOut
+      
+      Show-Progress -Message 'Disable 8dot3 File names for NTFS' -Source $CmdletName
+      Disable-8dot3FileNames
 			
       Show-Progress -Message 'Enabling F8 boot menu options' -Source $CmdletName
       Enable-F8BootMenu
+      
+      Show-Progress -Message 'Disable startup recovery' -Source $CmdletName
+      Disable-StartupRecovery 
 			
       Show-Progress -Message 'Removing AutoLogger file and restricting directory...' -Source $CmdletName
       Disable-AutoLogger
 			
       Show-Progress -Message 'Disabling insecure SMB 1.0 protocol' -Source $CmdletName
       Disable-SMB1
+      
+      Show-Progress -Message 'Enabling PSRemoting' -Source $CmdletName
+      Enable-PSRemoting -Force -Confirm:$false 
     }
 	
     Show-Progress -Message 'Set language settings'
     Invoke-SetLanguage
     Invoke-SetHomeLocation
-  }
-
-  End {
-    Write-FunctionHeaderOrFooter -CmdletName $CmdletName -Footer
-  }
-}
-Function Invoke-SetChocolateySource
-{
-  [CmdletBinding()]
-  Param(
-    [ValidateSet('Local', 'Internet')]
-    [Parameter(Mandatory = $true,Position = 0,ValueFromPipeline = $true)]
-    [string]$Source
-  )
-
-  Begin {
-    [string]$CmdletName = $PSCmdlet.MyInvocation.MyCommand.Name
-    Write-FunctionHeaderOrFooter -CmdletName $CmdletName -CmdletBoundParameters $PSBoundParameters -Header
-  }
-	
-  Process 
-  {
-    if(Test-IsAdmin) 
-    {
-      $ChocolateyInstallLocation = "$env:AllUsersProfile\chocolatey\" 
-      $ChocoExe = (Join-Path -Path $ChocolateyInstallLocation -ChildPath 'bin\choco.exe')
-	
-      Show-Progress -Message 'Running chocolatey to create initial config file' -Source $CmdletName
-      Try
-      {
-        if(Test-Path -Path "$ChocoExe")
-        {
-          Start-Process -FilePath $ChocoExe -ArgumentList 'feature', 'enable', '-n', 'allowEmptyChecksums' -Wait -WindowStyle Hidden
-          Start-Process -FilePath $ChocoExe -ArgumentList 'feature', 'enable', '-n', 'allowGlobalConfirmation' -Wait -WindowStyle Hidden
-        }
-      }
-      Catch
-      {
-        Write-Log -EntryType Warning -Message "Unable to run choco.exe `n$(Resolve-Error)" -Source $CmdletName
-        return
-      }
-		
-      Show-Progress -Message 'Getting chocolatey config file' -Source $CmdletName
-      Try 
-      {
-        $ChocolateyConfig = (Join-Path -Path "$ChocolateyInstallLocation" -ChildPath 'config\chocolatey.config')
-      }
-      catch 
-      {
-        Write-Log -EntryType Error -Message "Unable to load config file $ChocolateyConfig `n$(Resolve-Error)" -Source $CmdletName
-        return
-      }
-		
-      Show-Progress -Message 'Setting Chocolatey Source' -Source $CmdletName
-		
-      if(Test-Path -Path $ChocolateyConfig)
-      {
-        [xml]$ChocolateXmlDocument = New-Object -TypeName System.Xml.XmlDocument
-        
-        try 
-        {
-          $ChocolateXmlDocument.Load($ChocolateyConfig)
-        } 
-        catch 
-        {
-          Write-Log -EntryType Warning -Message "Unable to load config file $ChocolateyConfig `n$(Resolve-Error)" -Source $CmdletName
-        }
-			
-        Switch ($Source) 
-        { 
-          'Local' 
-          {
-            Show-Progress -Message 'Setting Local Source'
-            $ChocolateXmlDocument.chocolatey.sources.source.value = "$env:NuGetServer/nuget"
-            $ChocolateXmlDocument.chocolatey.sources.source.id = 'custom'
-          }
-          'Internet' 
-          {
-            Show-Progress -Message 'Setting Internet Source'
-            $ChocolateXmlDocument.chocolatey.sources.source.value = 'https://chocolatey.org/api/v2/'
-            $ChocolateXmlDocument.chocolatey.sources.source.id = 'chocolatey'
-          }
-          default 
-          {
-            Show-Progress -Message 'Setting Local Source'
-            $ChocolateXmlDocument.chocolatey.sources.source.value = 'https://chocolatey.org/api/v2/'
-            $ChocolateXmlDocument.chocolatey.sources.source.id = 'chocolatey'
-          }
-        }
-
-        Show-Progress -Message "Saving config file: $ChocolateyConfig" -Source $CmdletName
-        try 
-        {
-          $ChocolateXmlDocument.Save("$ChocolateyConfig")
-        }
-        catch 
-        {
-          Write-Log -EntryType Warning -Message "Unable to save config file $ChocolateyConfig" -Source $CmdletName
-        }
-      }
-      else 
-      {
-        Write-Log -EntryType Warning -Message 'Chocolatey has not been initialized run choco.exe atleast once to generate config file'
-      }
-    }
-    else 
-    {
-      Write-Log -EntryType Warning  -Message "User is not administrator skipping [$CmdletName]"
-    }
   }
 
   End {

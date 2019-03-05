@@ -15,7 +15,7 @@ Function Show-Progress # TODO: Update this to support standalone mode and task s
   param(
     [Parameter(Mandatory = $true)]
     [string] $Message,
-    [string] $Source
+    [Parameter(Mandatory=$true)][string] $Source
   )
 
   Process {
@@ -32,6 +32,107 @@ Function Show-Progress # TODO: Update this to support standalone mode and task s
       $StatusBlock = [ScriptBlock]::Create($StatusText)
       Write-Progress -Id $Id -Activity $Activity -Status (& $StatusBlock) -CurrentOperation $Message -PercentComplete ($Script:CurrentStep / $MaxStep * 100)
     }
+  }
+}
+
+Function Convert-RegistryPath
+{
+  <#
+      .SYNOPSIS
+      Converts the specified registry key path to a format that is compatible with built-in PowerShell cmdlets.
+      .DESCRIPTION
+      Converts the specified registry key path to a format that is compatible with built-in PowerShell cmdlets.
+      Converts registry key hives to their full paths. Example: HKLM is converted to "Registry::HKEY_LOCAL_MACHINE".
+      .PARAMETER Key
+      Path to the registry key to convert (can be a registry hive or fully qualified path)
+      .PARAMETER SID
+      The security identifier (SID) for a user. Specifying this parameter will convert a HKEY_CURRENT_USER registry key to the HKEY_USERS\$SID format.
+      Specify this parameter from the Invoke-HKCURegistrySettingsForAllUsers function to read/edit HKCU registry settings for all users on the system.
+      .EXAMPLE
+      Convert-RegistryPath -Key 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{1AD147D0-BE0E-3D6C-AC11-64F6DC4163F1}'
+      .EXAMPLE
+      Convert-RegistryPath -Key 'HKLM:SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{1AD147D0-BE0E-3D6C-AC11-64F6DC4163F1}'
+      .NOTES
+      .LINK
+	
+  #>
+  [CmdletBinding()]
+  Param (
+    [Parameter(Mandatory = $true)]
+    [ValidateNotNullorEmpty()]
+    [string]$Key,
+    [Parameter(Mandatory = $false)]
+    [ValidateNotNullorEmpty()]
+    [string]$SID
+  )
+	
+  Begin {
+    ## Get the name of this function and write header
+    [string]${CmdletName} = $PSCmdlet.MyInvocation.MyCommand.Name
+    Write-FunctionHeaderOrFooter -CmdletName ${CmdletName} -CmdletBoundParameters $PSBoundParameters -Header
+  }
+  Process {
+    ## Convert the registry key hive to the full path, only match if at the beginning of the line
+    If ($Key -match '^HKLM:\\|^HKCU:\\|^HKCR:\\|^HKU:\\|^HKCC:\\|^HKPD:\\') 
+    {
+      #  Converts registry paths that start with, e.g.: HKLM:\
+      $Key = $Key -replace '^HKLM:\\', 'HKEY_LOCAL_MACHINE\'
+      $Key = $Key -replace '^HKCR:\\', 'HKEY_CLASSES_ROOT\'
+      $Key = $Key -replace '^HKCU:\\', 'HKEY_CURRENT_USER\'
+      $Key = $Key -replace '^HKU:\\', 'HKEY_USERS\'
+      $Key = $Key -replace '^HKCC:\\', 'HKEY_CURRENT_CONFIG\'
+      $Key = $Key -replace '^HKPD:\\', 'HKEY_PERFORMANCE_DATA\'
+    }
+    ElseIf ($Key -match '^HKLM:|^HKCU:|^HKCR:|^HKU:|^HKCC:|^HKPD:') 
+    {
+      #  Converts registry paths that start with, e.g.: HKLM:
+      $Key = $Key -replace '^HKLM:', 'HKEY_LOCAL_MACHINE\'
+      $Key = $Key -replace '^HKCR:', 'HKEY_CLASSES_ROOT\'
+      $Key = $Key -replace '^HKCU:', 'HKEY_CURRENT_USER\'
+      $Key = $Key -replace '^HKU:', 'HKEY_USERS\'
+      $Key = $Key -replace '^HKCC:', 'HKEY_CURRENT_CONFIG\'
+      $Key = $Key -replace '^HKPD:', 'HKEY_PERFORMANCE_DATA\'
+    }
+    ElseIf ($Key -match '^HKLM\\|^HKCU\\|^HKCR\\|^HKU\\|^HKCC\\|^HKPD\\') 
+    {
+      #  Converts registry paths that start with, e.g.: HKLM\
+      $Key = $Key -replace '^HKLM\\', 'HKEY_LOCAL_MACHINE\'
+      $Key = $Key -replace '^HKCR\\', 'HKEY_CLASSES_ROOT\'
+      $Key = $Key -replace '^HKCU\\', 'HKEY_CURRENT_USER\'
+      $Key = $Key -replace '^HKU\\', 'HKEY_USERS\'
+      $Key = $Key -replace '^HKCC\\', 'HKEY_CURRENT_CONFIG\'
+      $Key = $Key -replace '^HKPD\\', 'HKEY_PERFORMANCE_DATA\'
+    }
+		
+    If ($PSBoundParameters.ContainsKey('SID')) 
+    {
+      ## If the SID variable is specified, then convert all HKEY_CURRENT_USER key's to HKEY_USERS\$SID				
+      If ($Key -match '^HKEY_CURRENT_USER\\') 
+      {
+        $Key = $Key -replace '^HKEY_CURRENT_USER\\', "HKEY_USERS\$SID\"
+      }
+    }
+		
+    ## Append the PowerShell drive to the registry key path
+    If ($Key -notmatch '^Registry::') 
+    {
+      [string]$Key = "Registry::$Key"
+    }
+		
+    If($Key -match '^Registry::HKEY_LOCAL_MACHINE|^Registry::HKEY_CLASSES_ROOT|^Registry::HKEY_CURRENT_USER|^Registry::HKEY_USERS|^Registry::HKEY_CURRENT_CONFIG|^Registry::HKEY_PERFORMANCE_DATA') 
+    {
+      ## Check for expected key string format
+      Write-Log -Message "Return fully qualified registry key path [$Key]." -Source ${CmdletName}
+      Write-Output -InputObject $Key
+    }
+    Else
+    {
+      #  If key string is not properly formatted, throw an error
+      Throw "Unable to detect target registry hive in string [$Key]."
+    }
+  }
+  End {
+    Write-FunctionHeaderOrFooter -CmdletName ${CmdletName} -Footer
   }
 }
 
@@ -201,7 +302,7 @@ Function Invoke-SetupRunOnce
   }
 }
 
-Function Set-RegistryValues 
+Function Set-RegistryValues
 {
   [CmdletBinding()]
   Param
@@ -375,36 +476,36 @@ Function Stop-EdgePDF
   $NoPDF = 'HKCR:\.pdf'
   $NoProgids = 'HKCR:\.pdf\OpenWithProgids'
   $NoWithList = 'HKCR:\.pdf\OpenWithList' 
-  If (!(Get-ItemProperty $NoPDF  -Name NoOpenWith)) 
+  If (!(Get-ItemProperty -Path $NoPDF  -Name NoOpenWith)) 
   {
-    New-ItemProperty $NoPDF -Name NoOpenWith
+    New-ItemProperty -Path $NoPDF -Name NoOpenWith
   }        
-  If (!(Get-ItemProperty $NoPDF  -Name NoStaticDefaultVerb)) 
+  If (!(Get-ItemProperty -Path $NoPDF  -Name NoStaticDefaultVerb)) 
   {
-    New-ItemProperty $NoPDF  -Name NoStaticDefaultVerb
+    New-ItemProperty -Path $NoPDF  -Name NoStaticDefaultVerb
   }        
-  If (!(Get-ItemProperty $NoProgids  -Name NoOpenWith)) 
+  If (!(Get-ItemProperty -Path $NoProgids  -Name NoOpenWith)) 
   {
-    New-ItemProperty $NoProgids  -Name NoOpenWith
+    New-ItemProperty -Path $NoProgids  -Name NoOpenWith
   }        
-  If (!(Get-ItemProperty $NoProgids  -Name NoStaticDefaultVerb)) 
+  If (!(Get-ItemProperty -Path $NoProgids  -Name NoStaticDefaultVerb)) 
   {
-    New-ItemProperty $NoProgids  -Name NoStaticDefaultVerb
+    New-ItemProperty -Path $NoProgids  -Name NoStaticDefaultVerb
   }        
-  If (!(Get-ItemProperty $NoWithList  -Name NoOpenWith)) 
+  If (!(Get-ItemProperty -Path $NoWithList  -Name NoOpenWith)) 
   {
-    New-ItemProperty $NoWithList  -Name NoOpenWith
+    New-ItemProperty -Path $NoWithList  -Name NoOpenWith
   }        
-  If (!(Get-ItemProperty $NoWithList  -Name NoStaticDefaultVerb)) 
+  If (!(Get-ItemProperty -Path $NoWithList  -Name NoStaticDefaultVerb)) 
   {
-    New-ItemProperty $NoWithList  -Name NoStaticDefaultVerb
+    New-ItemProperty -Path $NoWithList  -Name NoStaticDefaultVerb
   }
             
   #Appends an underscore '_' to the Registry key for Edge
   $Edge = 'HKCR:\AppXd4nrz8ff68srnhf9t5a8sbjyar1cr723_'
-  If (Test-Path $Edge) 
+  If (Test-Path -Path $Edge) 
   {
-    Set-Item $Edge -Value AppXd4nrz8ff68srnhf9t5a8sbjyar1cr723_
+    Set-Item -Path $Edge -Value AppXd4nrz8ff68srnhf9t5a8sbjyar1cr723_
   }
 }
 
@@ -1308,7 +1409,7 @@ Function Invoke-SetupStartmenuCurrentUser
 
     Show-Progress -Message 'Setting up start menu shortcuts for user' -Source $CmdletName
 		
-    $startlayoutstruser = @"
+    $startlayoutstruser = @'
 <LayoutModificationTemplate Version="1" xmlns="http://schemas.microsoft.com/Start/2014/LayoutModification" xmlns:defaultlayout="http://schemas.microsoft.com/Start/2014/FullDefaultLayout" xmlns:start="http://schemas.microsoft.com/Start/2014/StartLayout" xmlns:taskbar="http://schemas.microsoft.com/Start/2014/TaskbarLayout">
   <LayoutOptions StartTileGroupCellWidth="6" />
   <DefaultLayoutOverride>
@@ -1318,11 +1419,11 @@ Function Invoke-SetupStartmenuCurrentUser
     </StartLayoutCollection>
   </DefaultLayoutOverride>
   </LayoutModificationTemplate>
-"@
+'@
 
     Try 
     {
-      Add-Content -Path "$env:TEMP\startlayoutuser.xml" -Value $startlayoutstr
+      Add-Content -Path "$env:TEMP\startlayoutuser.xml" -Value $startlayoutstruser
     }
     Catch 
     {
@@ -3822,7 +3923,7 @@ Function Remove-Keys
   ForEach ($key in $Keys) 
   {
     Write-Output -InputObject "Removing $key from registry"
-    Remove-Item $key -Recurse
+    Remove-Item -Path $key -Recurse
   }
 }
 
@@ -3893,6 +3994,150 @@ Function Disable-SMBv1
   }
 }
 
+Function Invoke-NetworkTweaks {
+
+  Disable-NetAdapterRsc -Name *
+  Set-NetTCPSetting -SettingName InternetCustom -AutoTuningLevelLocal Normal
+  Set-NetTCPSetting -SettingName InternetCustom -ScalingHeuristics Disabled
+  Set-NetTCPSetting -SettingName InternetCustom -CongestionProvider CTCP
+  Set-NetOffloadGlobalSetting -Chimney Disabled
+  netsh int tcp set global dca=enabled
+  Enable-NetAdapterChecksumOffload -Name *
+  Enable-NetAdapterRss -Name * 
+  Set-NetOffloadGlobalSetting -ReceiveSegmentCoalescing disabled
+  Set-NetOffloadGlobalSetting -PacketCoalescingFilter disabled
+  Disable-NetAdapterLso -Name *
+  Set-NetTCPSetting -SettingName InternetCustom -EcnCapability Disabled
+  Set-NetTCPSetting -SettingName InternetCustom -Timestamps Disabled
+  Set-NetTCPSetting -SettingName InternetCustom -InitialRto 3000
+  set-NetTCPSetting -SettingName InternetCustom -MinRto 300
+  Set-NetTCPSetting -SettingName InternetCustom -NonSackRttResiliency disabled
+  Set-NetTCPSetting -SettingName InternetCustom -MaxSynRetransmissions 2
+  Set-NetTCPSetting -SettingName InternetCustom -InitialCongestionWindow 10
+  
+        $networkregisterKeys += @(
+        @{
+          Key         = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Tcpip\ServiceProvider'
+          Name        = 'LocalPriority'
+          Value       = 4
+
+        }
+        @{
+          Key         = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Tcpip\ServiceProvider'
+          Name        = 'HostPriority'
+          Value       = 5
+        }
+        @{
+          Key         = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Tcpip\ServiceProvider'
+          Name        = 'DnsPriority'
+          Value       = 6
+        }
+        @{
+          Key         = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Tcpip\ServiceProvider'
+          Name        = 'NetbtPriority'
+          Value       = 7
+        }
+        @{
+          Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Psched'
+          Name        = 'NonBestEffortLimit'
+          Value       = 0
+        }
+        @{
+          Key         = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management'
+          Name        = 'LargeSystemCache'
+          Value       = 0
+        }
+        @{
+          Key         = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters'
+          Name        = 'Size'
+          Value       = 3
+        }
+        @{
+          Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile'
+          Name        = 'NetworkThrottlingIndex'
+          Value       = 4294967295 #ffffffff
+        }
+        @{
+          Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile'
+          Name        = 'SystemResponsiveness'
+          Value       = 0
+        }
+        
+        @{
+          Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\Games'
+          Name        = 'Affinity'
+          Value       = 0
+        }
+        @{
+          Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\Games'
+          Name        = 'Background Only'
+          Value       = 'False'
+        }
+        @{
+          Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\Games'
+          Name        = 'Clock Rate'
+          Value       =  2710
+        }
+        @{
+          Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\Games'
+          Name        = 'GPU Priority'
+          Value       =  8
+        }
+        @{
+          Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\Games'
+          Name        = 'Priority'
+          Value       =  2
+        }
+        @{
+          Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\Games'
+          Name        = 'Scheduling Category'
+          Value       =  'High'
+        }
+        @{
+          Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\Games'
+          Name        = 'SFIO Priority'
+          Value       =  'High'
+        }
+      )
+      
+      
+      
+      # Disable Nagle's Algorithm
+      # Find current network interface
+      
+      $InterfacesRootRegistryKey = 'HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces\*'
+      $InterfacesSubKeys = Get-Item -Path $InterfacesRootRegistryKey
+  
+      Foreach ($InterfaceSubKey in $InterfacesSubKeys) 
+      {
+        $Property = Get-ItemProperty -Path (Convert-RegistryPath -Key $InterfaceSubKey.Name)
+    
+        if($Property.DhcpIPAddress -ine $null -and $Property.EnableDHCP -eq 1) 
+        {
+          $obj = $InterfaceSubKey.Name
+        }
+      }
+
+      $networkregisterKeys += @(
+        @{
+          Key   = "$obj"
+          Name  = 'TcpAckFrequency'
+          Value = 1
+        }
+        @{
+          Key   = "$obj"
+          Name  = 'TCPNoDelay'
+          Value = 1
+        }
+        @{
+          Key   = "$obj"
+          Name  = 'TcpDelAckTicks'
+          Value = 0
+        }
+      )
+      
+      Set-RegistryValues -registerKeys $networkregisterKeys
+}
 
 Function Disable-AutoLogger 
 {

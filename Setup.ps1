@@ -10,7 +10,7 @@ Param(
   [Parameter()]
   $NoWallpaper
 )
-Function Show-Progress # TODO: Update this to support standalone mode and task sequences
+Function Show-Progress
 {
   param(
     [Parameter(Mandatory = $true)]
@@ -68,8 +68,8 @@ Function Convert-RegistryPath
 	
   Begin {
     ## Get the name of this function and write header
-    [string]${CmdletName} = $PSCmdlet.MyInvocation.MyCommand.Name
-    Write-FunctionHeaderOrFooter -CmdletName ${CmdletName} -CmdletBoundParameters $PSBoundParameters -Header
+    [string]$CmdletName = $PSCmdlet.MyInvocation.MyCommand.Name
+    Write-FunctionHeaderOrFooter -CmdletName $CmdletName -CmdletBoundParameters $PSBoundParameters -Header
   }
   Process {
     ## Convert the registry key hive to the full path, only match if at the beginning of the line
@@ -122,7 +122,7 @@ Function Convert-RegistryPath
     If($Key -match '^Registry::HKEY_LOCAL_MACHINE|^Registry::HKEY_CLASSES_ROOT|^Registry::HKEY_CURRENT_USER|^Registry::HKEY_USERS|^Registry::HKEY_CURRENT_CONFIG|^Registry::HKEY_PERFORMANCE_DATA') 
     {
       ## Check for expected key string format
-      Write-Log -Message "Return fully qualified registry key path [$Key]." -Source ${CmdletName}
+      Write-Log -Message "Return fully qualified registry key path [$Key]." -Source $CmdletName
       Write-Output -InputObject $Key
     }
     Else
@@ -132,7 +132,7 @@ Function Convert-RegistryPath
     }
   }
   End {
-    Write-FunctionHeaderOrFooter -CmdletName ${CmdletName} -Footer
+    Write-FunctionHeaderOrFooter -CmdletName $CmdletName -Footer
   }
 }
 
@@ -308,7 +308,7 @@ Function Set-RegistryValues
   Param
   (
     [Parameter(Mandatory = $true,HelpMessage = 'Add help message for user')]
-    $registerKeys
+    [string[]]$registerKeys
   )
 	
   Begin {
@@ -508,30 +508,89 @@ Function Stop-EdgePDF
     Set-Item -Path $Edge -Value AppXd4nrz8ff68srnhf9t5a8sbjyar1cr723_
   }
 }
-
 Function Invoke-DisableServices
 {
   [CmdletBinding()]
   Param
   (
     [string[]]$services = @(
-      'diagnosticshub.standardcollector.service' # Microsoft Diagnostics Hub Standard Collector Service
-      'DiagTrack'                                # Diagnostics Tracking Service
-      'dmwappushservice'                         # WAP Push Message Routing Service
-      'HomeGroupListener'                        # HomeGroup Listener
-      'HomeGroupProvider'                        # HomeGroup Provider
-      'lfsvc'                                    # Geolocation Service
-      'MapsBroker'                               # Downloaded Maps Manager
-      'SharedAccess'                             # Internet Connection Sharing (ICS)
-      'WbioSrvc'                                 # Windows Biometric Service
-      'WMPNetworkSvc'                            # Windows Media Player Network Sharing Service
-      'XblAuthManager'                           # Xbox Live Auth Manager
-      'XblGameSave'                              # Xbox Live Game Save Service
-      'XboxNetApiSvc'                            # Xbox Live Networking Service
-      'TrkWks'                                   # Distributed Link Tracking Client. Description: Maintains links between NTFS files within a computer or across computers in a network.
-      'beep'                                     # Windows Beep Service, stops annoying beeps in powershell console
-    ),
-    [bool]$SkipXboxServices
+  'diagnosticshub.standardcollector.service' # Microsoft Diagnostics Hub Standard Collector Service
+  'DiagTrack'                                # Diagnostics Tracking Service
+  'dmwappushservice'                         # WAP Push Message Routing Service
+  'HomeGroupListener'                        # HomeGroup Listener
+  'HomeGroupProvider'                        # HomeGroup Provider
+  'lfsvc'                                    # Geolocation Service
+  'MapsBroker'                               # Downloaded Maps Manager
+  'SharedAccess'                             # Internet Connection Sharing (ICS)
+  'WbioSrvc'                                 # Windows Biometric Service
+  'WMPNetworkSvc'                            # Windows Media Player Network Sharing Service
+  'XblAuthManager'                           # Xbox Live Auth Manager
+  'XblGameSave'                              # Xbox Live Game Save Service
+  'XboxNetApiSvc'                            # Xbox Live Networking Service
+  'TrkWks'                                   # Distributed Link Tracking Client. Description: Maintains links between NTFS files within a computer or across computers in a network.
+  'beep'                                     # Windows Beep Service, stops annoying beeps in powershell console
+  'iphlpsvc'
+  'ALG'
+  'AppMgmt'
+  'PeerDistSvc'
+  'CertPropSvc'
+  'irmon'
+  'MSiSCSI'
+  'NaturalAuthentication'
+  'Netlogon'
+  'RpcLocator'
+  'RetailDemo'
+  'SCPolicySvc'
+  'SNMPTRAP'
+  'wcncsvc'
+  'wisvc'
+  'WinRM'
+  'WwanSvc'
+  'SessionEnv'
+  'TermService'
+  'UmRdpService'
+  'AJRouter'
+  'BthHFSrv'
+  'bthserv'
+  'dmwappushsvc'
+  'HvHost'
+  'vmickvpexchange'
+  'vmicguestinterface'
+  'vmicshutdown'
+  'vmicheartbeat'
+  'vmicvmsession'
+  'vmicrdv'
+  'IpxlatCfgSvc'
+  'SmsRouter'
+  'CscService'
+  'SEMgrSvc'
+  'PhoneSvc'
+  'SensorDataService'
+  'SensrSvc'
+  'SensorService'
+  'ScDeviceEnum'
+  'TabletInputService'
+  'WebClient'
+  'WFDSConSvc'
+  'FrameServer'
+  'icssvc'
+  'xbgm'
+  'XblGameSave'
+  'lfsvc'
+  'NcdAutoSetup'
+  'NfsClnt'
+  'WMPNetworkSvc'
+  'WlanSvc'
+  'lmhosts'
+  'msahci'
+  'p2pimsvc'
+  'PcaSvc'
+  'PNRPsvc'
+  'RemoteRegistry'
+  'SENS'
+  'SysMain'
+),
+    [bool]$SkipXboxServices = $false
   )
 	
   Begin {
@@ -728,6 +787,9 @@ Function Invoke-SetPowerPlan
 
   Process {
 	
+    # Windows 10 1803+ Unlock Windows Ultimate Performance Power Plan
+    # powercfg -duplicatescheme e9a/42b02-d5df-448d-aa00-03f14749eb61
+  
     If(Test-IsAdmin) 
     {
       Function Select-Plan
@@ -831,7 +893,6 @@ Function Invoke-InstallSoftware
       {
         Write-Log -EntryType Warning -Message 'Chocolatey is not installed skipping software installation' -Source $CmdletName
         return
-        # TODO: Attempt to install chocolatey
       }
   
       Foreach ($Software in $SoftwareList)
@@ -862,11 +923,11 @@ Function Invoke-InstallCCEnhancer
   
     if(Test-IsAdmin) 
     {
-      if(Test-Path -Path 'C:\Program Files\CCleaner') 
+      if(Test-Path -Path "$env:ProgramW6432\CCleaner") 
       {
         Try 
         {
-          Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/MoscaDotTo/Winapp2/master/Winapp2.ini' -OutFile 'C:\Program Files\CCleaner\Winapp2.ini'
+          Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/MoscaDotTo/Winapp2/master/Winapp2.ini' -OutFile "$env:ProgramW6432\CCleaner\Winapp2.ini"
         } catch 
         {
           Write-Log -EntryType Warning  -Message 'Unable to download CCEnhancer winapp2.ini file'
@@ -1009,7 +1070,7 @@ Function Invoke-AddWindowsFeatures
   [CmdletBinding()]
   param
   (
-    $features = @(
+    [string[]]$features = @(
       'NetFx3'
     )
   )
@@ -2193,7 +2254,7 @@ Function Invoke-ApplyRegistrySettingsCurrentUser
   )
 		
   # Disable SmartScreen Filter
-  $Edge = (Get-AppxPackage -AllUsers -Name 'Microsoft.MicrosoftEdge').PackageFamilyName
+  $Edge = (Get-AppxPackage -AllUsers -Name 'Microsoft.MicrosoftEdge') | Select-Object -Property PackageFamilyName -ExpandProperty PackageFamilyName -First 1
   $registerKeys += @(
     @{
       Key         = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\AppHost'
@@ -2633,6 +2694,12 @@ Function Invoke-ApplyRegistrySettingsLocalMachine
           Name        = 'EnableSuperfetch'
           Value       = 0
           Description = 'Disable Superfetch'
+        }
+        @{
+          Key         = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management\PrefetchParameters'
+          Name        = 'EnableBoottrace'
+          Value       = 0
+          Description = 'Disable Boot trace'
         }
       )
 			
@@ -3335,6 +3402,12 @@ Function Invoke-ApplyRegistrySettingsLocalMachine
           Description = 'Add Run as different user to context menu'
         }
         @{
+          Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Explorer'
+          Name        = 'DisableNotificationCenter'
+          Value       = 1
+          Description = 'Disable Notification Center'
+        }
+        @{
           Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\LocationAndSensors'
           Name        = 'DisableLocation'
           Value       = 1
@@ -3859,6 +3932,41 @@ Function Disable-OptionalWindowsFeatures
 }
 
 
+Function Set-HPET {
+  [CmdletBinding()]
+  Param(
+    [switch]$EnableHPET,
+    [switch]$DisableHPET
+  )
+  
+  Begin {
+    [string]$CmdletName = $PSCmdlet.MyInvocation.MyCommand.Name
+    Write-FunctionHeaderOrFooter -CmdletName $CmdletName -CmdletBoundParameters $PSBoundParameters -Header
+  }
+  
+  Process {
+  
+    if($EnableHPET.IsPresent) {
+    Show-Progress -Message 'Enabling HPET in Windows' -Source $CmdletName
+      $null = & "$env:windir\system32\bcdedit.exe" /set useplatformclock true
+      $null = & "$env:windir\system32\bcdedit.exe" /set tscsyncpolicy Enhanced
+      $null = & "$env:windir\system32\bcdedit.exe" /set disabledynamictick yes
+    }
+
+    If($DisableHPET.IsPresent) {
+    Show-Progress -Message 'Disabling HPET in Windows' -Source $CmdletName
+      $null = & "$env:windir\system32\bcdedit.exe" /deletevalue useplatformclock
+      $null = & "$env:windir\system32\bcdedit.exe" /deletevalue tscsyncpolicy
+      $null = & "$env:windir\system32\bcdedit.exe" /deletevalue disabledynamictick
+    }
+  }
+   End {
+    Write-FunctionHeaderOrFooter -CmdletName $CmdletName -Footer
+  }
+
+}
+
+
 Function Enable-F8BootMenu 
 {
   # Enable F8 boot menu options
@@ -3996,31 +4104,43 @@ Function Disable-SMBv1
 
 Function Invoke-NetworkTweaks {
 
-  Disable-NetAdapterRsc -Name *
-  Set-NetTCPSetting -SettingName InternetCustom -AutoTuningLevelLocal Normal
-  Set-NetTCPSetting -SettingName InternetCustom -ScalingHeuristics Disabled
-  Set-NetTCPSetting -SettingName InternetCustom -CongestionProvider CTCP
-  Set-NetOffloadGlobalSetting -Chimney Disabled
-  netsh int tcp set global dca=enabled
-  Enable-NetAdapterChecksumOffload -Name *
-  Enable-NetAdapterRss -Name * 
-  Set-NetOffloadGlobalSetting -ReceiveSegmentCoalescing disabled
-  Set-NetOffloadGlobalSetting -PacketCoalescingFilter disabled
-  Disable-NetAdapterLso -Name *
-  Set-NetTCPSetting -SettingName InternetCustom -EcnCapability Disabled
-  Set-NetTCPSetting -SettingName InternetCustom -Timestamps Disabled
-  Set-NetTCPSetting -SettingName InternetCustom -InitialRto 3000
-  set-NetTCPSetting -SettingName InternetCustom -MinRto 300
-  Set-NetTCPSetting -SettingName InternetCustom -NonSackRttResiliency disabled
-  Set-NetTCPSetting -SettingName InternetCustom -MaxSynRetransmissions 2
-  Set-NetTCPSetting -SettingName InternetCustom -InitialCongestionWindow 10
+  [CmdletBinding()]
+  param()
+
+  Begin {
+    [string]$CmdletName = $PSCmdlet.MyInvocation.MyCommand.Name
+    Write-FunctionHeaderOrFooter -CmdletName $CmdletName -CmdletBoundParameters $PSBoundParameters -Header
+  }
+
+  Process {
+  
+    Set-NetTCPSetting -SettingName InternetCustom -AutoTuningLevelLocal Normal
+    Set-NetTCPSetting -SettingName InternetCustom -ScalingHeuristics Disabled
+    Set-NetTCPSetting -SettingName InternetCustom -CongestionProvider CTCP
+    Set-NetOffloadGlobalSetting -Chimney Disabled
+    & "$env:windir\system32\netsh.exe" int tcp set global dca=enabled
+    Enable-NetAdapterRss -Name * 
+    Set-NetOffloadGlobalSetting -ReceiveSegmentCoalescing disabled
+    Set-NetOffloadGlobalSetting -PacketCoalescingFilter disabled
+    Disable-NetAdapterChecksumOffload -Name *
+    Disable-NetAdapterLso -Name *
+    Disable-NetAdapterRsc -Name *
+    Disable-NetAdapterIPsecOffload -Name *
+    Disable-NetAdapterPowerManagement -Name *
+    Disable-NetAdapterQos -Name *
+    Set-NetTCPSetting -SettingName InternetCustom -EcnCapability Disabled
+    Set-NetTCPSetting -SettingName InternetCustom -Timestamps Disabled
+    Set-NetTCPSetting -SettingName InternetCustom -InitialRto 3000
+    set-NetTCPSetting -SettingName InternetCustom -MinRto 300
+    Set-NetTCPSetting -SettingName InternetCustom -NonSackRttResiliency disabled
+    Set-NetTCPSetting -SettingName InternetCustom -MaxSynRetransmissions 2
+    Set-NetTCPSetting -SettingName InternetCustom -InitialCongestionWindow 10
   
         $networkregisterKeys += @(
         @{
           Key         = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Tcpip\ServiceProvider'
           Name        = 'LocalPriority'
           Value       = 4
-
         }
         @{
           Key         = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Tcpip\ServiceProvider'
@@ -4062,7 +4182,6 @@ Function Invoke-NetworkTweaks {
           Name        = 'SystemResponsiveness'
           Value       = 0
         }
-        
         @{
           Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\Games'
           Name        = 'Affinity'
@@ -4100,8 +4219,6 @@ Function Invoke-NetworkTweaks {
         }
       )
       
-      
-      
       # Disable Nagle's Algorithm
       # Find current network interface
       
@@ -4137,6 +4254,66 @@ Function Invoke-NetworkTweaks {
       )
       
       Set-RegistryValues -registerKeys $networkregisterKeys
+
+      }
+
+  End {
+    Write-FunctionHeaderOrFooter -CmdletName $CmdletName -Footer
+  }
+}
+
+Function Set-NetworkBuffersSizes 
+{
+  [CmdletBinding()]
+  Param(
+    [switch]$Reset
+  )
+  $Paths = @(
+    'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Class\{4d36e972-e325-11ce-bfc1-08002be10318}\0001\Ndi\Params\*TransmitBuffers'
+    'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Class\{4d36e972-e325-11ce-bfc1-08002be10318}\0001\Ndi\Params\*ReceiveBuffers'
+  )
+
+  $networkregisterKeys = @()
+
+  Foreach ($Path in $Paths) 
+  {
+    $Path = Convert-RegistryPath -Key $Path
+
+    if(Test-Path -Path $Path) 
+    {
+      if($Reset.IsPresent) 
+      {
+        $networkregisterKeys += @(
+          @{
+            Key   = "$Path"
+            Name  = 'max'
+            Value = '2048'
+          }
+          @{
+            Key   = "$Path"
+            Name  = 'min'
+            Value = '80'
+          }
+        )
+      }
+      else 
+      {
+        $networkregisterKeys += @(
+          @{
+            Key   = "$Path"
+            Name  = 'max'
+            Value = '6144'
+          }
+          @{
+            Key   = "$Path"
+            Name  = 'min'
+            Value = '8'
+          }
+        )
+      }
+    }
+  }
+  Set-RegistryValues -registerKeys $networkregisterKeys
 }
 
 Function Disable-AutoLogger 

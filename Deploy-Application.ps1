@@ -30,9 +30,9 @@ Try
   ##* VARIABLE DECLARATION
   ##*===============================================
   ## Variables: Application
-  [string]$appVendor = 'PC'
-  [string]$appName = 'Setup'
-  [string]$appVersion = ''
+  [string]$appVendor = 'Setup'
+  [string]$appName = 'Utility'
+  [string]$appVersion = '1.0.0'
   [string]$appArch = 'x64'
   [string]$appLang = 'EN'
   [string]$appRevision = '01'
@@ -177,10 +177,11 @@ Try
 
     #>
 
-    #Show-InstallationProgress  -StatusMessage  'Installing CCEnhancer'
-    #Install-CCEnhancer 
-        
-    Show-InstallationProgress  -StatusMessage  'Installing CMTrace'
+    
+    Install-CCEnhancer
+
+    Install-ISLC
+    
     Invoke-InstallCMTrace
 
     ##*##########################################
@@ -195,8 +196,7 @@ Try
     Disable-WindowsThemeSounds
 
     Clean-DesktopIcons
-
-    
+        
     Set-TerminalShortcutsAsAdmin
     
     Unpin-App  -Name 'Microsoft Edge'
@@ -227,7 +227,6 @@ Try
       Destination      = Join-Path -Path  $env:USERPROFILE -ChildPath 'Desktop'
     }
     New-Shortcut @ControlPanel
-
     
     
     Invoke-AddWindowsFeatures -feature @(
@@ -1662,14 +1661,14 @@ Try
       'WerSvc'
       'OneSyncSvc'
       'MessagingService'
-      "wercplsupport"
-      "PcaSvc"
-      "wlidsvc"
-      "wisvc"
-      "RetailDemo"
-      "diagsvc"
-      "shpamsvc" 
-      "TroubleshootingSvc"
+      'wercplsupport'
+      'PcaSvc'
+      'wlidsvc'
+      'wisvc'
+      'RetailDemo'
+      'diagsvc'
+      'shpamsvc' 
+      'TroubleshootingSvc'
     )
 
     Disable-BeepService

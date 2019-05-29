@@ -77,6 +77,26 @@ Function Invoke-ElevatePrivileges
   $Type[0]::EnablePrivilege($ProcessHandle, $Privilege)
 }
 
+Function Get-Temp 
+{
+  <# 
+      Workaround for temp running in system context 
+      7-Zip fails to extract files when running as system in the $env:Temp directory
+  #>
+  if([Security.Principal.WindowsIdentity]::GetCurrent().Name -ieq 'NT Authority\System') 
+  {
+    $obj = Join-Path -Path $env:windir -ChildPath 'temp'
+  }
+  else 
+  {
+    if ($env:TEMP -eq $null) 
+    {
+      $env:TEMP = Join-Path -Path $env:windir -ChildPath 'temp'
+    }
+    $obj = $env:TEMP
+  }
+  Write-Output -InputObject $obj
+}
 
 Function Convert-RegistryPath
 {
@@ -356,6 +376,8 @@ Function Invoke-InstallCMTrace
   }
   
   Process {
+    Show-InstallationProgress  -StatusMessage  'Installing CMTrace'
+
     if(-Not (Test-Path -Path "$env:windir\cmtrace.exe")) 
     {
       if(Test-Path -Path "$PSScriptRoot\Includes\CMTrace.exe") 
@@ -836,7 +858,7 @@ Function Install-CCEnhancer
   
   Process {
 
-    Show-InstallationProgress -StatusMessage  'Removing Builtin Windows Applications'
+    Show-InstallationProgress  -StatusMessage  'Installing CCEnhancer'
   
     if(Test-Path -Path "$env:ProgramW6432\CCleaner") 
     {
@@ -854,6 +876,37 @@ Function Install-CCEnhancer
       Write-Error -Message 'CCleaner is not installed'
     }
     
+
+  } End {
+    Write-FunctionHeaderOrFooter -CmdletName $CmdletName -Footer
+  }
+}
+Function Install-ISLC
+{
+  Begin {
+    [string]$CmdletName = $PSCmdlet.MyInvocation.MyCommand.Name
+    Write-FunctionHeaderOrFooter -CmdletName $CmdletName -CmdletBoundParameters $PSBoundParameters -Header
+  }
+  
+  Process {
+
+    Show-InstallationProgress -StatusMessage  'Installing Intelligent standby list cleaner'
+  
+    Try
+    {
+      Invoke-WebRequest -Uri 'https://www.wagnardsoft.com/ISLC/ISLC%20v1.0.1.1.exe' -OutFile "$(Get-Temp)\ISLC.exe"
+    }
+    catch 
+    {
+      Write-Error -Message "Unable to download ISLC `n$(Resolve-Error)"
+    }
+
+    Start-Process -FilePath "$(Get-Temp)\ISLC.exe" -ArgumentList "-y -o$([char]34)$($env:ProgramW6432)$([char]34)"
+     
+    if(Test-Path -Path "$($env:ProgramW6432)\ISLC v1.0.1.1\Intelligent standby list cleaner ISLC.exe")
+    {
+      Set-StartupEntry -Name 'ISLC' -Type HKLM -Operation Add -Path "$($env:ProgramW6432)\ISLC v1.0.1.1\Intelligent standby list cleaner ISLC.exe"
+    }
 
   } End {
     Write-FunctionHeaderOrFooter -CmdletName $CmdletName -Footer
@@ -1213,9 +1266,9 @@ Function New-Shortcut
   
   Process {
 
-    if(Test-Path -Path "$env:USERPROFILE\Desktop\Network Connections.lnk") 
+    if(Test-Path -Path "$env:USERPROFILE\Desktop\$Name") 
     {
-      Remove-Item -Path "$env:USERPROFILE\Desktop\Network Connections.lnk" -Force
+      Remove-Item -Path "$env:USERPROFILE\Desktop\$Name" -Force
     }
   
     $ShortcutPath = Join-Path -Path $Destination -ChildPath $Name

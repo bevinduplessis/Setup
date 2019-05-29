@@ -17,8 +17,7 @@
     http://psappdeploytoolkit.com
 #>
 [CmdletBinding()]
-Param (
-)
+Param ()
 
 ##*===============================================
 ##* VARIABLE DECLARATION
@@ -78,13 +77,36 @@ Function Invoke-ElevatePrivileges
   $Type[0]::EnablePrivilege($ProcessHandle, $Privilege)
 }
 
-Function Set-RegistryValues
+
+Function Convert-RegistryPath
 {
+  <#
+      .SYNOPSIS
+      Converts the specified registry key path to a format that is compatible with built-in PowerShell cmdlets.
+      .DESCRIPTION
+      Converts the specified registry key path to a format that is compatible with built-in PowerShell cmdlets.
+      Converts registry key hives to their full paths. Example: HKLM is converted to "Registry::HKEY_LOCAL_MACHINE".
+      .PARAMETER Key
+      Path to the registry key to convert (can be a registry hive or fully qualified path)
+      .PARAMETER SID
+      The security identifier (SID) for a user. Specifying this parameter will convert a HKEY_CURRENT_USER registry key to the HKEY_USERS\$SID format.
+      Specify this parameter from the Invoke-HKCURegistrySettingsForAllUsers function to read/edit HKCU registry settings for all users on the system.
+      .EXAMPLE
+      Convert-RegistryPath -Key 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{1AD147D0-BE0E-3D6C-AC11-64F6DC4163F1}'
+      .EXAMPLE
+      Convert-RegistryPath -Key 'HKLM:SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{1AD147D0-BE0E-3D6C-AC11-64F6DC4163F1}'
+      .NOTES
+      .LINK
+	
+  #>
   [CmdletBinding()]
-  Param
-  (
-    [Parameter(Mandatory = $true,HelpMessage = 'Add help message for user')]
-    [string[]]$registerKeys
+  Param (
+    [Parameter(Mandatory = $true)]
+    [ValidateNotNullorEmpty()]
+    [string]$Key,
+    [Parameter(Mandatory = $false)]
+    [ValidateNotNullorEmpty()]
+    [string]$SID
   )
 	
   Begin {
@@ -92,57 +114,120 @@ Function Set-RegistryValues
     [string]$CmdletName = $PSCmdlet.MyInvocation.MyCommand.Name
     Write-FunctionHeaderOrFooter -CmdletName $CmdletName -CmdletBoundParameters $PSBoundParameters -Header
   }
+  Process {
+    ## Convert the registry key hive to the full path, only match if at the beginning of the line
+    If ($Key -match '^HKLM:\\|^HKCU:\\|^HKCR:\\|^HKU:\\|^HKCC:\\|^HKPD:\\') 
+    {
+      #  Converts registry paths that start with, e.g.: HKLM:\
+      $Key = $Key -replace '^HKLM:\\', 'HKEY_LOCAL_MACHINE\'
+      $Key = $Key -replace '^HKCR:\\', 'HKEY_CLASSES_ROOT\'
+      $Key = $Key -replace '^HKCU:\\', 'HKEY_CURRENT_USER\'
+      $Key = $Key -replace '^HKU:\\', 'HKEY_USERS\'
+      $Key = $Key -replace '^HKCC:\\', 'HKEY_CURRENT_CONFIG\'
+      $Key = $Key -replace '^HKPD:\\', 'HKEY_PERFORMANCE_DATA\'
+    }
+    ElseIf ($Key -match '^HKLM:|^HKCU:|^HKCR:|^HKU:|^HKCC:|^HKPD:') 
+    {
+      #  Converts registry paths that start with, e.g.: HKLM:
+      $Key = $Key -replace '^HKLM:', 'HKEY_LOCAL_MACHINE\'
+      $Key = $Key -replace '^HKCR:', 'HKEY_CLASSES_ROOT\'
+      $Key = $Key -replace '^HKCU:', 'HKEY_CURRENT_USER\'
+      $Key = $Key -replace '^HKU:', 'HKEY_USERS\'
+      $Key = $Key -replace '^HKCC:', 'HKEY_CURRENT_CONFIG\'
+      $Key = $Key -replace '^HKPD:', 'HKEY_PERFORMANCE_DATA\'
+    }
+    ElseIf ($Key -match '^HKLM\\|^HKCU\\|^HKCR\\|^HKU\\|^HKCC\\|^HKPD\\') 
+    {
+      #  Converts registry paths that start with, e.g.: HKLM\
+      $Key = $Key -replace '^HKLM\\', 'HKEY_LOCAL_MACHINE\'
+      $Key = $Key -replace '^HKCR\\', 'HKEY_CLASSES_ROOT\'
+      $Key = $Key -replace '^HKCU\\', 'HKEY_CURRENT_USER\'
+      $Key = $Key -replace '^HKU\\', 'HKEY_USERS\'
+      $Key = $Key -replace '^HKCC\\', 'HKEY_CURRENT_CONFIG\'
+      $Key = $Key -replace '^HKPD\\', 'HKEY_PERFORMANCE_DATA\'
+    }
+		
+    If ($PSBoundParameters.ContainsKey('SID')) 
+    {
+      ## If the SID variable is specified, then convert all HKEY_CURRENT_USER key's to HKEY_USERS\$SID				
+      If ($Key -match '^HKEY_CURRENT_USER\\') 
+      {
+        $Key = $Key -replace '^HKEY_CURRENT_USER\\', "HKEY_USERS\$SID\"
+      }
+    }
+		
+    ## Append the PowerShell drive to the registry key path
+    If ($Key -notmatch '^Registry::') 
+    {
+      [string]$Key = "Registry::$Key"
+    }
+		
+    If($Key -match '^Registry::HKEY_LOCAL_MACHINE|^Registry::HKEY_CLASSES_ROOT|^Registry::HKEY_CURRENT_USER|^Registry::HKEY_USERS|^Registry::HKEY_CURRENT_CONFIG|^Registry::HKEY_PERFORMANCE_DATA') 
+    {
+      ## Check for expected key string format
+      #Write-Log -Message "Return fully qualified registry key path [$Key]." -Source $CmdletName
+      Write-Output -InputObject $Key
+    }
+    Else
+    {
+      #  If key string is not properly formatted, throw an error
+      Throw "Unable to detect target registry hive in string [$Key]."
+    }
+  }
+  End {
+    Write-FunctionHeaderOrFooter -CmdletName $CmdletName -Footer
+  }
+}
+
+Function Set-RegistryValues
+{
+  [CmdletBinding()]
+  Param
+  (
+    [Parameter(Mandatory = $true)]
+    [Array]$registerKeys
+  )
+	
+  Begin {
+    [string]$CmdletName = $PSCmdlet.MyInvocation.MyCommand.Name
+    Write-FunctionHeaderOrFooter -CmdletName $CmdletName -CmdletBoundParameters $PSBoundParameters -Header
+  }
 	
   Process {
     Foreach ($registerKey in $registerKeys)
     {
-      If(
-        !([string]::IsNullOrEmpty($($registerKey.Key))) -and
-        !([string]::IsNullOrEmpty($($registerKey.Name))) 
-      )
+      If(!([string]::IsNullOrEmpty($($registerKey.Key))) -and !([string]::IsNullOrEmpty($($registerKey.Name))))
       {
-        $key = Convert-RegistryPath -Key $registerKey.Key
+        $Key = Convert-RegistryPath -Key $registerKey.Key
         $Name = $registerKey.Name
         $Value = $registerKey.Value
-					
+        $Description = $registerKey.Description	
         If([string]::IsNullOrEmpty($($registerKey.Description))) 
-        { 
-          Write-Log -Message "Applying registry modification: $($registerKey.Description)" -Source $CmdletName
-          Show-InstallationProgress  -StatusMessage "Applying registry modification: $($registerKey.Description). `n Please wait..."
+        {
+          Show-InstallationProgress -StatusMessage "Applying Registry Modification: $Description"
         }
-						
+
         Try 
         {
-          if (!(Test-Path -LiteralPath $key))
+          if (!(Test-Path -LiteralPath $Key))
           {
-            Write-Log -Message "Creating registry '$key'" -Source $CmdletName
-            $null = New-Item -Path $key -ItemType RegistryKey -Force
+            $null = New-Item -Path $Key -ItemType RegistryKey -Force
           }
-          Write-Log -Message "Path '$key' Name '$Name' Value '$Value'" -Source $CmdletName
          
           if(!([string]::IsNullOrEmpty($Value))) 
           {
-            Set-ItemProperty -LiteralPath $key -Name $Name -Value $Value -Force
+            Set-ItemProperty -LiteralPath $Key -Name $Name -Value $Value -Force
           } 
           else 
           {
-            Set-ItemProperty -LiteralPath $key -Name $Name -Value "$null" -Force
+            Set-ItemProperty -LiteralPath $Key -Name $Name -Value "$null" -Force
           }
         }
         Catch 
         {
-          $Message = "Unable to add registry item [$key] [$Name] [$Value]"
-          Write-Log -Severity 2 -Message "$Message. `n$(Resolve-Error)" -Source $CmdletName
+          $Message = "Unable to add registry item [$Key] [$Name] [$Value]"
+          Write-Warning -Message "$Message. `n$(Resolve-Error)"
           Continue
-        }
-					
-        if(Test-Path -Path "$key" -PathType Container) 
-        {
-          Write-Log -Severity 2 -Message "Testing if registry value name exists '$(Test-RegistryValue -Key "$key" -Value "$Name")'" -Source $CmdletName
-        }
-        else 
-        {
-          Write-Log -Severity 2 -Message 'Registry key does not exist' -Source $CmdletName
         }
       }
     }
@@ -263,6 +348,89 @@ Function Test-IsAdmin
   }
 }
 
+Function Invoke-InstallCMTrace
+{
+  Begin {
+    [string]$CmdletName = $PSCmdlet.MyInvocation.MyCommand.Name
+    Write-FunctionHeaderOrFooter -CmdletName $CmdletName -CmdletBoundParameters $PSBoundParameters -Header
+  }
+  
+  Process {
+    if(-Not (Test-Path -Path "$env:windir\cmtrace.exe")) 
+    {
+      if(Test-Path -Path "$PSScriptRoot\Includes\CMTrace.exe") 
+      {
+        Copy-Item -Path "$PSScriptRoot\Includes\CMTrace.exe" -Destination $env:windir
+      }
+      else 
+      {
+        Write-Warning -Message "cmtrace.exe not found in $PSScriptRoot\Includes"
+      }
+    }
+
+    New-Item -Path 'HKLM:\Software\Classes\.lo_' -ItemType Directory -Force -ErrorAction SilentlyContinue
+    New-Item -Path 'HKLM:\Software\Classes\.log' -ItemType Directory -Force -ErrorAction SilentlyContinue
+    New-Item -Path 'HKLM:\Software\Classes\.log.File' -ItemType Directory -Force -ErrorAction SilentlyContinue
+    New-Item -Path 'HKLM:\Software\Classes\.Log.File\shell' -ItemType Directory -Force -ErrorAction SilentlyContinue
+    New-Item -Path 'HKLM:\Software\Classes\Log.File\shell\Open' -ItemType Directory -Force -ErrorAction SilentlyContinue
+    New-Item -Path 'HKLM:\Software\Classes\Log.File\shell\Open\Command' -ItemType Directory -Force -ErrorAction SilentlyContinue
+    New-Item -Path 'HKLM:\Software\Microsoft\Trace32' -ItemType Directory -Force -ErrorAction SilentlyContinue
+
+    # Create the properties to make CMtrace the default log viewer
+    New-ItemProperty -LiteralPath 'HKLM:\Software\Classes\.lo_' -Name '(default)' -Value 'Log.File' -PropertyType String -Force -ErrorAction SilentlyContinue
+
+    New-ItemProperty -LiteralPath 'HKLM:\Software\Classes\.log' -Name '(default)' -Value 'Log.File' -PropertyType String -Force -ErrorAction SilentlyContinue
+
+    New-ItemProperty -LiteralPath 'HKLM:\Software\Classes\Log.File\shell\open\command' -Name '(default)' -Value "`"C:\Windows\CCM\CMTrace.exe`" `"%1`"" -PropertyType String -Force -ErrorAction SilentlyContinue
+
+
+    # Create an ActiveSetup that will remove the initial question in CMtrace if it should be the default reader
+    New-Item -Path 'HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\CMtrace' -ItemType Directory
+    New-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\CMtrace' -Name 'Version' -Value 1 -PropertyType String -Force 
+    New-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\CMtrace' -Name 'StubPath' -Value 'reg.exe add HKCU\Software\Microsoft\Trace32 /v ""Register File Types"" /d 0 /f' -PropertyType ExpandString -Force
+  } 
+  
+  End {
+    Write-FunctionHeaderOrFooter -CmdletName $CmdletName -Footer
+  }
+}
+
+Function Disable-GameDVR
+{
+  Begin {
+    [string]$CmdletName = $PSCmdlet.MyInvocation.MyCommand.Name
+    Write-FunctionHeaderOrFooter -CmdletName $CmdletName -CmdletBoundParameters $PSBoundParameters -Header
+  }
+
+  Process {
+
+    Show-InstallationProgress -StatusMessage 'Disable GameDVR and Gamebar'
+
+    if((Test-Path -LiteralPath 'HKCU:\Software\Microsoft\GameBar') -ne $true) 
+    {
+      New-Item -Path 'HKCU:\Software\Microsoft\GameBar' -Force -ErrorAction SilentlyContinue
+    }
+    if((Test-Path -LiteralPath 'HKCU:\System\GameConfigStore') -ne $true) 
+    {
+      New-Item -Path 'HKCU:\System\GameConfigStore' -Force -ErrorAction SilentlyContinue
+    }
+    New-ItemProperty -LiteralPath 'HKCU:\Software\Microsoft\GameBar' -Name 'UseNexusForGameBarEnabled' -Value 0 -PropertyType DWord -Force -ea SilentlyContinue
+    New-ItemProperty -LiteralPath 'HKCU:\Software\Microsoft\GameBar' -Name 'AutoGameModeEnabled' -Value 0 -PropertyType DWord -Force -ea SilentlyContinue
+    New-ItemProperty -LiteralPath 'HKCU:\System\GameConfigStore' -Name 'GameDVR_Enabled' -Value 0 -PropertyType DWord -Force -ea SilentlyContinue
+    New-ItemProperty -LiteralPath 'HKCU:\System\GameConfigStore' -Name 'GameDVR_FSEBehavior' -Value 2 -PropertyType DWord -Force -ea SilentlyContinue
+    New-ItemProperty -LiteralPath 'HKCU:\System\GameConfigStore' -Name 'GameDVR_FSEBehaviorMode' -Value 2 -PropertyType DWord -Force -ea SilentlyContinue
+    New-ItemProperty -LiteralPath 'HKCU:\System\GameConfigStore' -Name 'GameDVR_HonorUserFSEBehaviorMode' -Value 0 -PropertyType DWord -Force -ea SilentlyContinue
+    New-ItemProperty -LiteralPath 'HKCU:\System\GameConfigStore' -Name 'GameDVR_DXGIHonorFSEWindowsCompatible' -Value 0 -PropertyType DWord -Force -ea SilentlyContinue
+    New-ItemProperty -LiteralPath 'HKCU:\System\GameConfigStore' -Name 'GameDVR_EFSEFeatureFlags' -Value 0 -PropertyType DWord -Force -ea SilentlyContinue
+    New-ItemProperty -LiteralPath 'HKCU:\System\GameConfigStore' -Name 'Win32_AutoGameModeDefaultProfile' -Value ([byte[]](0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0xc4, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00)) -PropertyType Binary -Force -ea SilentlyContinue
+    New-ItemProperty -LiteralPath 'HKCU:\System\GameConfigStore' -Name 'Win32_GameModeRelatedProcesses' -Value ([byte[]](0x01, 0x00, 0x01, 0x00, 0x01, 0x00, 0xc0, 0x00, 0xc6, 0x02, 0x50, 0x54, 0xc7, 0x02, 0x70, 0x00, 0x61, 0x00, 0x6e, 0x00, 0x65, 0x00, 0x6c, 0x00, 0x2e, 0x00, 0x65, 0x00, 0x78, 0x00, 0x65, 0x00, 0x00, 0x00, 0x8c, 0x00, 0x4e, 0x8d, 0xe1, 0x74, 0xb8, 0xed, 0xd2, 0x02, 0x18, 0x4c, 0xc7, 0x02, 0x1e, 0x00, 0x00, 0x00, 0xb8, 0xed, 0xd2, 0x02, 0x1e, 0x00, 0x00, 0x00, 0x0f, 0x00, 0x00, 0x00, 0x30, 0xe7, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00)) -PropertyType Binary -Force -ea SilentlyContinue
+  }
+
+  End {
+    Write-FunctionHeaderOrFooter -CmdletName $CmdletName -Footer
+  }
+}
+
 Function Set-DEPOptOut 
 {
   Begin {
@@ -270,7 +438,9 @@ Function Set-DEPOptOut
     Write-FunctionHeaderOrFooter -CmdletName $CmdletName -CmdletBoundParameters $PSBoundParameters -Header
   }
   Process {
-    # Set Data Execution Prevention (DEP) policy to OptOut
+
+    Show-InstallationProgress -StatusMessage 'Set Data Execution Prevention (DEP) policy to OptOut'
+
     $null = & "$env:windir\system32\bcdedit.exe" /set `{current`} nx OptOut
   }
   End {
@@ -278,188 +448,107 @@ Function Set-DEPOptOut
   }
 }
 
-Function Set-PageFile 
+Function Set-WindowsUpdateSettings 
 {
-  [cmdletbinding(SupportsShouldProcess,DefaultParameterSetName = 'SetPageFileSize')]
-  Param
-  (
-    [Parameter(Mandatory,ParameterSetName = 'SetPageFileSize')]
-    [Alias('is')]
-    [int]$InitialSize,
- 
-    [Parameter(Mandatory,ParameterSetName = 'SetPageFileSize')]
-    [Alias('ms')]
-    [int]$MaximumSize,
- 
-    [Parameter(Mandatory)]
-    [Alias('dl')]
-    [ValidatePattern('^[A-Z]$')]
-    [String[]]$DriveLetter,
- 
-    [Parameter(Mandatory,ParameterSetName = 'None')]
-    [Switch]$None,
- 
-    [Parameter(Mandatory,ParameterSetName = 'SystemManagedSize')]
-    [Switch]$SystemManagedSize,
- 
-    [Parameter()]
-    [Switch]$Reboot,
- 
-    [Parameter(Mandatory,ParameterSetName = 'AutoConfigure')]
-    [Alias('auto')]
-    [Switch]$AutoConfigure
-  )
   Begin {
     [string]$CmdletName = $PSCmdlet.MyInvocation.MyCommand.Name
     Write-FunctionHeaderOrFooter -CmdletName $CmdletName -CmdletBoundParameters $PSBoundParameters -Header
   }
   Process {
-    If($PSCmdlet.ShouldProcess('Setting the virtual memory page file size')) 
-    {
-      $DriveLetter | ForEach-Object -Process {
-        $DL = $_
-        $PageFile = $Vol = $null
-        try 
-        {
-          $Vol = Get-CimInstance -ClassName CIM_StorageVolume -Filter "Name='$($DL):\\'" -ErrorAction Stop
-        }
-        catch 
-        {
-          Write-Log -Message "Failed to find the DriveLetter $DL specified" -Severity 2 -Source $CmdletName
-          return
-        }
-        if ($Vol.DriveType -ne 3) 
-        {
-          Write-Log -Message 'The selected drive should be a fixed local volume' -Severity 2 -Source $CmdletName
-          return
-        }
-        Switch ($PSCmdlet.ParameterSetName) {
-          None 
-          {
-            try 
-            {
-              $PageFile = Get-CimInstance -Query "Select * From Win32_PageFileSetting Where Name='$($DL):\\pagefile.sys'" -ErrorAction Stop
-            }
-            catch 
-            {
-              Write-Log -Message "Failed to query the Win32_PageFileSetting class because $($_.Exception.Message)" -Severity 2 -Source $CmdletName
-            }
-            If($PageFile) 
-            {
-              try 
-              {
-                $PageFile | Remove-CimInstance -ErrorAction Stop
-              }
-              catch 
-              {
-                Write-Log -Message "Failed to delete pagefile the Win32_PageFileSetting class because $($_.Exception.Message)" -Severity 2 -Source $CmdletName
-              }
-            }
-            Else 
-            {
-              Write-Log -Message "$DL is already set None!" -Severity 2 -Source $CmdletName
-            }
-            break
-          }
-          SystemManagedSize 
-          {
-            Set-PageFileSize -DL $DL -InitialSize 0 -MaximumSize 0
-            break
-          }
-          AutoConfigure 
-          {         
-            $TotalPhysicalMemorySize = @()
-            #Getting total physical memory size
-            try 
-            {
-              Get-CimInstance -ClassName Win32_PhysicalMemory  -ErrorAction Stop |
-              Where-Object -Property DeviceLocator -NE -Value 'SYSTEM ROM' |
-              ForEach-Object -Process {
-                $TotalPhysicalMemorySize += [Double]($_.Capacity)/1GB
-              }
-            }
-            catch 
-            {
-              Write-Log -Message "Failed to query the Win32_PhysicalMemory class because $($_.Exception.Message)" -Severity 2 -Source $CmdletName
-            }       
-            $InitialSize = (Get-CimInstance -ClassName Win32_PageFileUsage).AllocatedBaseSize
-            $sum = $null
-            (Get-Counter -Counter '\Process(*)\Page File Bytes Peak' -SampleInterval 15 -ErrorAction SilentlyContinue).CounterSamples.CookedValue | ForEach-Object -Process {
-              $sum += $_
-            }
-            $MaximumSize = ($sum*70/100)/1MB
-            if ($Vol.FreeSpace -gt $MaximumSize) 
-            {
-              Set-PageFileSize -DL $DL -InitialSize $InitialSize -MaximumSize $MaximumSize
-            }
-            else 
-            {
-              Write-Log -Message 'Maximum size of page file being set exceeds the freespace available on the drive' -Severity 2 -Source $CmdletName
-            }
-            break
-          }
-          Default 
-          {
-            if ($Vol.FreeSpace -gt $MaximumSize) 
-            {
-              Set-PageFileSize -DL $DL -InitialSize $InitialSize -MaximumSize $MaximumSize
-            }
-            else 
-            {
-              Write-Log -Message 'Maximum size of page file being set exceeds the freespace available on the drive'  -Severity 2 -Source $CmdletName
-            }
-          }
-        }
+    Show-InstallationProgress -StatusMessage 'Setting Windows Update to notify when updates are available, and you decide when to install them.'
+
+    $WindowsUpdateSettingsRegistry = @(
+      @{
+        Key   = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU'
+        Name  = 'NoAutoUpdate'
+        Value = 0
       }
- 
-      # Get current page file size information
-      try 
-      {
-        Get-CimInstance -ClassName Win32_PageFileSetting -ErrorAction Stop |
-        Select-Object -Property Name, 
-        @{
-          Name       = 'InitialSize(MB)'
-          Expression = {
-            if($_.InitialSize -eq 0)
-            {
-              'System Managed'
-            }
-            else
-            {
-              $_.InitialSize
-            }
-          }
-        }, 
-        @{
-          Name       = 'MaximumSize(MB)'
-          Expression = {
-            if($_.MaximumSize -eq 0)
-            {
-              'System Managed'
-            }
-            else
-            {
-              $_.MaximumSize
-            }
-          }
-        }| 
-        Format-Table -AutoSize
+      @{
+        Key   = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU'
+        Name  = 'AUOptions'
+        Value = 2
       }
-      catch 
-      {
-        Write-Log -Message "Failed to query Win32_PageFileSetting class because $($_.Exception.Message)" -Severity 3 -Source $CmdletName
+      @{
+        Key   = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU'
+        Name  = 'ScheduledInstallDay'
+        Value = 0
       }
-      If($Reboot) 
-      {
-        Restart-Computer -ComputerName $Env:COMPUTERNAME -Force
+      @{
+        Key   = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU'
+        Name  = 'ScheduledInstallTime'
+        Value = 3
       }
-    }
+    )
+
+    Set-RegistryValues -registerKeys $WindowsUpdateSettingsRegistry
+
   }
+
   End {
     Write-FunctionHeaderOrFooter -CmdletName $CmdletName -Footer
   }
 }
 
+Function Disable-SystemRestore 
+{
+  Begin {
+    [string]$CmdletName = $PSCmdlet.MyInvocation.MyCommand.Name
+    Write-FunctionHeaderOrFooter -CmdletName $CmdletName -CmdletBoundParameters $PSBoundParameters -Header
+  }
+
+  Process {
+
+    Show-InstallationProgress -StatusMessage 'Disable System Restore'
+
+    Disable-ComputerRestore -Drive "$env:SystemDrive\"
+    vssadmin.exe delete shadows /all /Quiet
+
+    $DisableSystemRestoreRegistry = @(
+      @{
+        Key   = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\SystemRestore'
+        Name  = 'DisableConfig'
+        Value = 1
+      }
+      @{
+        Key   = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\SystemRestore'
+        Name  = 'DisableSR'
+        Value = 1
+      }
+      @{
+        Key   = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\SystemRestore'
+        Name  = 'DisableConfig'
+        Value = 1
+      }
+      @{
+        Key   = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\SystemRestore'
+        Name  = 'DisableSR'
+        Value = 1
+      }
+    )
+
+    Set-RegistryValues -registerKeys $DisableSystemRestoreRegistry
+    Disable-ScheduledTasks -TaskName '\Microsoft\Windows\SystemRestore\SR'
+  }
+
+  End {
+    Write-FunctionHeaderOrFooter -CmdletName $CmdletName -Footer
+  }
+}
+
+Function Disable-8dot3FileNames
+{
+  Begin {
+    [string]$CmdletName = $PSCmdlet.MyInvocation.MyCommand.Name
+    Write-FunctionHeaderOrFooter -CmdletName $CmdletName -CmdletBoundParameters $PSBoundParameters -Header
+  }
+  Process {
+    Show-InstallationProgress -StatusMessage 'Disable 8dot3 file name creation'
+    $null = & "$env:windir\system32\fsutil.exe" behavior set Disable8dot3 1
+  }
+  End {
+    Write-FunctionHeaderOrFooter -CmdletName $CmdletName -Footer
+  }
+}
 
 Function Invoke-AddWindowsFeatures
 {
@@ -483,7 +572,7 @@ Function Invoke-AddWindowsFeatures
         Write-Log -Message "Adding Windows feature '$f'" -Source $CmdletName
         Try 
         {
-          Enable-WindowsOptionalFeature -Online -FeatureName $f -All -NoRestart -Source "$PSScriptRoot\Sources\sxs" -ErrorAction Stop
+          Enable-WindowsOptionalFeature -Online -FeatureName $f -All -NoRestart -Source "$PSScriptRoot\Includes\Sources\sxs" -ErrorAction Stop
         }
         Catch 
         {
@@ -503,7 +592,7 @@ Function Disable-ScheduledTasks
   [CmdletBinding()]
   Param
   (
-    [string[]]$tasks
+    [Parameter(Mandatory = $true)][string[]]$TaskName
   )
 
   Begin {
@@ -513,16 +602,18 @@ Function Disable-ScheduledTasks
 
   Process {
 
-    Foreach ($task in $tasks)
+    Show-InstallationProgress  -StatusMessage  'Disabling Scheduled Tasks'
+
+    Foreach ($Task in $TaskName)
     {
-      Write-Log -Message "Removing scheduled task '$task'" -Source $CmdletName
+      Write-Log -Message "Removing scheduled task '$Task'" -Source $CmdletName
       try 
       {
-        Disable-ScheduledTask -TaskName $task -ErrorAction Stop
+        Disable-ScheduledTask -TaskName $Task -ErrorAction Stop
       }
       catch 
       {
-        Write-Log -Message "Unable to remove scheduled task '$task'" -Severity 2
+        Write-Log -Message "Unable to remove scheduled task '$Task'" -Severity 2
       }
     }
   }
@@ -547,25 +638,28 @@ Function Disable-WindowsService
 
   Process {
 
+    Show-InstallationProgress  -StatusMessage  'Disabling unneeded windows services'
+
     Foreach ($s in $Service)
     {
-      Write-Log -Message "Stopping Service and disabling '$s'" -Source $CmdletName
-      Try 
+      Show-InstallationProgress -StatusMessage "Stopping Service and disabling '$s'"
+      try 
       {
         $null = Set-Service -Name $s -StartupType Disabled -ErrorAction Stop
       }
-      Catch 
+      catch 
       {
-        Write-Log -Message "Unable to set '$s' to disabled `n$(Resolve-Error)" -Severity 3 -Source $CmdletName
+        $Message = "Unable to disable service '$($s)'" 
+        Write-Warning -Message "$Message. `n$(Resolve-Error)"
       }
-				
-      Try 
+      try 
       {
         $null = Stop-Service -InputObject $s -ErrorAction Stop
       }
-      Catch 
+      catch 
       {
-        Write-Log -Message "Unable to stop '$s' `n$(Resolve-Error)" -Severity 3 -Source $CmdletName
+        $Message = "Unable to stop service '$($s)'" 
+        Write-Warning -Message "$Message. `n$(Resolve-Error)"
       }
     }
   }
@@ -587,12 +681,13 @@ Function Set-ShortcutRunAsAdmin
   }
 
   Process {
-	
+    Show-InstallationProgress  -StatusMessage  'Enable High Performance Power Plan'
+
+
     Foreach ($Path in $ShortcutPath) 
     {
       $Path = Get-ChildItem -Path $Path
-
-      Write-Log -Message "Setting '$Path' to always run as administrator" -Source $CmdletName
+      Show-InstallationProgress -StatusMessage "Setting '$Path' to always run as administrator"
       Try 
       {
         $bytes = [IO.File]::ReadAllBytes("$ShortcutPath")
@@ -601,7 +696,7 @@ Function Set-ShortcutRunAsAdmin
       } 
       Catch 
       {
-        Write-Log -Message "Unable to set '$ShortcutPath' to always run as administrator `n$(Resolve-Error)" -Severity 3 -Source $CmdletName
+        Show-InstallationProgress -StatusMessage  "Unable to set '$ShortcutPath' to always run as administrator"
       }
     }
     
@@ -615,19 +710,24 @@ Function Set-WindowsPowerPlan
 {
   [CmdletBinding()]
   Param(
-    [bool]$HighPerformance,
-    [bool]$Balanced
+    [switch]$HighPerformance,
+    [switch]$UltimatePerformance,
+    [switch]$Balanced
   )
 
   Begin {
     [string]$CmdletName = $PSCmdlet.MyInvocation.MyCommand.Name
     Write-FunctionHeaderOrFooter -CmdletName $CmdletName -CmdletBoundParameters $PSBoundParameters -Header
      
-    if($HighPerformance) 
+    if($UltimatePerformance.IsPresent) 
+    {
+      $Filter = 'Ultimate Performance'
+    }
+    elseif($HighPerformance.IsPresent) 
     {
       $Filter = 'High performance'
     }
-    else 
+    elseif($Balanced.IsPresent) 
     {
       $Filter = 'Balanced'
     }
@@ -646,29 +746,20 @@ Function Set-WindowsPowerPlan
       }
     }
 
-    Try 
+
+    Show-InstallationProgress -StatusMessage "Activating '$Filter' power plan"
+    $Plan = & "$env:windir\system32\powercfg.exe" -l | Select-Plan
+    $CurrPlan = $(& "$env:windir\system32\powercfg.exe" -getactivescheme).split()[3]
+    if ($CurrPlan -ne $Plan) 
     {
-      Write-Log -Message 'Activating [High Performance] power plan' -Source $CmdletName
-      $Plan = & "$env:windir\system32\powercfg.exe" -l | Select-Plan
-      $CurrPlan = $(& "$env:windir\system32\powercfg.exe" -getactivescheme).split()[3]
-      if ($CurrPlan -ne $Plan) 
-      {
-        & "$env:windir\system32\powercfg.exe" -setactive $Plan
-      }
+      & "$env:windir\system32\powercfg.exe" -setactive $Plan
     }
-    Catch 
-    {
-      Write-Log -Message "Unable to set power plan to '$Filter'" -Severity 2 -Source $CmdletName
-    }
-    
   }
 
   End {
     Write-FunctionHeaderOrFooter -CmdletName $CmdletName -Footer
   }
 }
-
-
 
 Function Install-ChocolateyPackage
 {
@@ -684,21 +775,51 @@ Function Install-ChocolateyPackage
   }
 
   Process {
+  
+    # Setup Logging
+    $LogDir = "$PSScriptRoot\Logs"
+
+    If (!(Test-Path -Path $LogDir))
+    {
+      New-Item -Path $LogDir -ItemType Directory
+    }
+    $LogFile = "$LogDir\chocolatey_log_$(Get-Date -UFormat '%Y-%m-%d')"
+  
+  
+    # Attempt to upgrade chocolatey (and all installed packages) else (if the command fails) install it.
+    try
+    {
+      choco.exe upgrade all -y -r --no-progress --log-file=$LogFile
+    }
+    catch 
+    {
+      Invoke-Expression -Command ((New-Object -TypeName System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
+    }
+ 
 	
     $chocoCmd = Get-Command -Name 'choco' -ErrorAction SilentlyContinue -WarningAction SilentlyContinue | Select-Object -ExpandProperty Source
     
     if ($chocoCmd -eq $null) 
     { 
-      Write-Log -Message 'Chocolatey is not installed skipping software installation' -Severity 2 -Source $CmdletName
+      Show-InstallationProgress -StatusMessage 'Chocolatey is not installed skipping software installation'
       return
     }
   
     Foreach ($p in $Package)
     {
-      Write-Log -Message "Installing $p" -Source $CmdletName
-      Start-Process -FilePath $chocoCmd -ArgumentList "install $p -y" -NoNewWindow -Wait
+      Show-InstallationProgress -StatusMessage  "Installing $p"
+      Start-Process -FilePath $chocoCmd -ArgumentList "install $p  -y -r --no-progress --log-file=$LogFile" -NoNewWindow -Wait
     }
-   
+    
+    # Remove log files over 10 days old
+    $limit = (Get-Date).AddDays(-10)
+
+    Get-ChildItem -Path $LogDir |
+    Where-Object -FilterScript {
+      $_.CreationTime -lt $limit
+    } |
+    Remove-Item -Force
+    
   }
 
   End {
@@ -714,6 +835,8 @@ Function Install-CCEnhancer
   }
   
   Process {
+
+    Show-InstallationProgress -StatusMessage  'Removing Builtin Windows Applications'
   
     if(Test-Path -Path "$env:ProgramW6432\CCleaner") 
     {
@@ -723,12 +846,12 @@ Function Install-CCEnhancer
       }
       catch 
       {
-        Write-Log -Message "Unable to download CCEnhancer winapp2.ini file `n$(Resolve-Error)" -Severity 3 -Source $CmdletName
+        Write-Error -Message "Unable to download CCEnhancer winapp2.ini file `n$(Resolve-Error)"
       }
     }
     else 
     {
-      Write-Log -Message 'CCleaner is not installed' -Severity 2 -Source $CmdletName
+      Write-Error -Message 'CCleaner is not installed'
     }
     
 
@@ -736,8 +859,6 @@ Function Install-CCEnhancer
     Write-FunctionHeaderOrFooter -CmdletName $CmdletName -Footer
   }
 }
-
-
 
 Function Remove-BuiltinWindowsApplications
 {
@@ -776,7 +897,7 @@ Function Remove-BuiltinWindowsApplications
     {
       If (($app.Name -in $apps)) # Exclude essential Windows apps
       {
-        Write-Log -Message "Skipping essential Windows app: $($app.Name)" -Source $CmdletName
+        Show-InstallationProgress -StatusMessage "Skipping essential Windows app: $($app.Name)"
       }
       Else # Remove AppxPackage and AppxProvisioningPackage
       {
@@ -789,22 +910,24 @@ Function Remove-BuiltinWindowsApplications
         # Attempt to remove AppxPackage
         Try 
         {
-          Write-Log -Message "Removing AppxPackage '$($AppPackageFullName)'" -Source $CmdletName
+          Show-InstallationProgress -StatusMessage "Removing AppxPackage '$($AppPackageFullName)'"
           Remove-AppxPackage -Package $AppPackageFullName -ErrorAction Stop
         }
         Catch  
         {
-          Write-Log -Message "Unable to remove $($AppPackageFullName)" -Severity 2 -Source $CmdletName
+          $Message = "Unable to remove $($AppPackageFullName)" 
+          Write-Warning -Message "$Message. `n$(Resolve-Error)"
         }
 
         Try 
         {
-          Write-Log -Message "Removing AppxProvisioningPackage '$($AppProvisioningPackageName)'" -Source $CmdletName
+          Show-InstallationProgress -StatusMessage "Removing AppxProvisioningPackage '$($AppProvisioningPackageName)'" 
           Remove-AppxProvisionedPackage -PackageName $AppProvisioningPackageName -Online -ErrorAction Stop
         }
         Catch  
         {
-          Write-Log -Message "Unable to remove '$($AppProvisioningPackageName)'" -Severity 2 -Source $CmdletName
+          $Message = "Unable to remove '$($AppProvisioningPackageName)'"
+          Write-Warning -Message "$Message. `n$(Resolve-Error)"
         }
       }
     }
@@ -814,8 +937,431 @@ Function Remove-BuiltinWindowsApplications
   }
 }
 
+Function Disable-WindowsDefender 
+{
+  [CmdletBinding()]
+  Param
+  ()
+  
+  Begin {
+    [string]$CmdletName = $PSCmdlet.MyInvocation.MyCommand.Name
+    Write-FunctionHeaderOrFooter -CmdletName $CmdletName -CmdletBoundParameters $PSBoundParameters -Header
+  }
 
-Function Disable-ApplicationsRunningINBackground
+  Process 
+  {
+    Show-InstallationProgress -StatusMessage 'Disable Windows Defender'
+
+
+    $tasks = @(
+      'Microsoft\Windows\Windows Defender\Windows Defender Cache Maintenance'
+      'Microsoft\Windows\Windows Defender\Windows Defender Cleanup'
+      'Microsoft\Windows\Windows Defender\Windows Defender Scheduled Scan'
+      'Microsoft\Windows\Windows Defender\Windows Defender Verification'
+    )
+
+    Disable-ScheduledTasks -TaskName $tasks
+
+    Takeown-Registry -key 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows Defender\Spynet'
+    Takeown-Registry -key 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\WinDefend'
+    $DisableWindowsDefenderRegisteryKeys = @(
+      @{
+        Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows Defender\Spynet'
+        Name        = 'SpyNetReporting'
+        Value       = 0
+        Description = 'Windows Defender Spynet'
+      }
+      @{
+        Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows Defender\Spynet'
+        Name        = 'SubmitSamplesConsent'
+        Value       = 0
+        Description = 'Windows Defender Sample Submission'
+      }
+      @{
+        Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows Defender'
+        Name        = 'DisableAntiSpyware'
+        Value       = 1
+        Description = 'Disable Windows Defender'
+      }
+      @{
+        Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows Defender'
+        Name        = 'DisableRoutinelyTakingAction'
+        Value       = 1
+        Description = 'Disable Windows Defender Routinely Taking Action'
+      }
+      @{
+        Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\Policies\Microsoft\Windows Defender\Real-Time Protection'
+        Name        = 'DisableRealtimeMonitoring'
+        Value       = 1
+        Description = 'Disable Windows Defender Realtime Protection'
+      }
+      @{
+        Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Classes\CLSID\{09A47860-11B0-4DA5-AFA5-26D86198A780}\InprocServer32'
+        Name        = 'Default'
+        Value       = ''
+        Description = 'Removing Windows Defender context menu item'
+      }
+      @{
+        Key         = 'HKEY_CURRENT_USER\Software\Microsoft\Windows Defender'
+        Name        = 'UIFirstRun'
+        Value       = 0
+        Description = 'Disable Windows Defender First Run UI'
+      }
+    )
+
+    Set-RegistryValues -registerKeys $DisableWindowsDefenderRegisteryKeys
+    
+    Disable-WindowsService -Service 'WinDefend'
+    Disable-WindowsService -Service 'WdNisSvc'
+    Disable-WindowsService -Service 'Sense'
+
+    Show-InstallationProgress -StatusMessage 'Removing Windows Defender GUI / tray from autorun'
+    Set-StartupEntry -Name 'WindowsDefender' -Type 'HKLM' -Operation Remove
+  }
+  End {
+    Write-FunctionHeaderOrFooter -CmdletName $CmdletName -Footer
+  }
+}
+
+
+Function Set-TerminalShortcutsAsAdmin
+{
+  [CmdletBinding()]
+  Param  
+  ()
+
+  Begin {
+    [string]$CmdletName = $PSCmdlet.MyInvocation.MyCommand.Name
+    Write-FunctionHeaderOrFooter -CmdletName $CmdletName -CmdletBoundParameters $PSBoundParameters -Header
+  }
+
+  Process {
+
+    Show-InstallationProgress -StatusMessage 'Set Powershell and Command Prompt to run as administrator'
+
+    $PowerShellPath = "$env:SystemDrive\Users\Default\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Windows PowerShell\"
+    $CommandPrompt = "$env:SystemDrive\Users\Default\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\System Tools\"
+
+    $ShortcutPaths = Get-ChildItem -Path $PowerShellPath -Recurse -Include *.lnk
+    $ShortcutPaths += Get-ChildItem -Path $CommandPrompt -Recurse -Include 'Command Prompt.lnk'
+
+    Foreach ($ShortcutPath in $ShortcutPaths) 
+    {
+      Show-InstallationProgress -StatusMessage "Setting '$ShortcutPath' to run as administrator"
+			
+      Try 
+      {
+        $bytes = [IO.File]::ReadAllBytes("$ShortcutPath")
+        $bytes[0x15] = $bytes[0x15] -bor 0x20
+        [IO.File]::WriteAllBytes("$ShortcutPath", $bytes)
+      } 
+      Catch 
+      {
+        Write-Log -EntryType Warning -Message "Unable to set [$ShortcutPath] to always run as administrator"
+      }
+    }
+  }
+
+  End {
+
+
+    Write-FunctionHeaderOrFooter -CmdletName $CmdletName -Footer
+  }
+}
+
+Function Disable-SMBv1 
+{
+  Begin {
+    [string]$CmdletName = $PSCmdlet.MyInvocation.MyCommand.Name
+    Write-FunctionHeaderOrFooter -CmdletName $CmdletName -CmdletBoundParameters $PSBoundParameters -Header
+  }
+
+  Process 
+  {
+    Show-InstallationProgress -StatusMessage 'Disabling SMBv1'
+
+    Disable-WindowsOptionalFeature -Online -FeatureName SMB1Protocol -NoRestart
+    Set-SmbServerConfiguration -EnableSMB1Protocol $false -Force
+  }
+
+  End {
+    Write-FunctionHeaderOrFooter -CmdletName $CmdletName -Footer
+  }
+}
+
+Function Disable-SharingWifiNetworks 
+{
+  Show-InstallationProgress  -StatusMessage  'Disabling sharing of Wi-Fi networks'
+
+  $user = New-Object -TypeName System.Security.Principal.NTAccount -ArgumentList ($env:UserName)
+  $SID = $user.Translate([System.Security.Principal.SecurityIdentifier]).value
+
+  $DisableSharingWifiNetworksRegistryKeys = @(
+    @{
+      Key         = "HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\WcmSvc\wifinetworkmanager\features\$SID"
+      Name        = 'FeatureStates'
+      Value       = 0x33c
+      Description = 'WifiSense Credential Share'
+    }
+    @{
+      Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\WcmSvc\wifinetworkmanager\features'
+      Name        = 'WiFiSenseCredShared'
+      Value       = 0
+      Description = 'WifiSense Credential Share'
+    }
+    @{
+      Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\WcmSvc\wifinetworkmanager\features'
+      Name        = 'WiFiSenseOpen'
+      Value       = 0
+      Description = 'WifiSense Open-ness'
+    }
+  )
+
+  Set-RegistryValues -registerKeys $DisableSharingWifiNetworksRegistryKeys
+}
+
+Function Set-StartupEntry
+{
+  [CmdletBinding()]
+  Param(
+    [Parameter(Mandatory = $true)][string]$Name,
+    [Parameter(Mandatory = $true)][ValidateSet('HKLM','HKCU')]
+    [string]$Type,
+    [Parameter(Mandatory = $true)][ValidateSet('Remove','Add')]
+    [string]$Operation,
+    [switch]$RunOnce,
+    [string]$Path
+  )
+
+  # HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\Run
+  # HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run
+  # HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\RunOnce
+  # HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\RunOnce
+
+
+  if($Type -imatch 'HKLM')
+  {
+    if($RunOnce.IsPresent) 
+    {
+      if($Operation -imatch 'Remove') 
+      {
+        Remove-ItemProperty -Path 'HKLM:\Software\Microsoft\Windows\CurrentVersion\RunOnce' -Name "$Name" -ErrorAction SilentlyContinue
+      }
+      else 
+      {
+        New-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce' -Name $Name -Value $Path -ErrorAction SilentlyContinue
+      }
+    }
+    else 
+    {
+      if($Operation -imatch 'Remove') 
+      {
+        Remove-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run' -Name "$Name" -ErrorAction SilentlyContinue
+      }
+      else 
+      {
+        New-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run' -Name $Name -Value $Path -ErrorAction SilentlyContinue
+      }
+    }
+  }
+
+  if($Type -imatch 'HKCU')
+  {
+    if($RunOnce.IsPresent) 
+    {
+      if($Operation -imatch 'Remove') 
+      {
+        Remove-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\RunOnce' -Name "$Name" -ErrorAction SilentlyContinue
+      }
+      elseif ($Operation -imatch 'Add')  
+      {
+        Set-ItemProperty -Path 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce' -Name $Name -Value $Path -ErrorAction SilentlyContinue
+      }
+    }
+    else 
+    {
+      if($Operation -imatch 'Remove') 
+      {
+        Remove-ItemProperty -Path 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run' -Name "$Name" -ErrorAction SilentlyContinue
+      }
+      elseif ($Operation -imatch 'Add') 
+      {
+        Set-ItemProperty -Path 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run' -Name $Name -Value $Path -ErrorAction SilentlyContinue
+      }
+    }
+  }
+}
+
+
+Function New-Shortcut
+{
+  [CmdletBinding()]
+  Param(
+    [string]$Name,
+    [string]$TargetPath,
+    [string]$Arguments,
+    [string]$WorkingDirectory,
+    [string]$IconLocation,
+    [string]$Description,
+    [string]$Destination
+  )
+  
+  Begin {
+    [string]$CmdletName = $PSCmdlet.MyInvocation.MyCommand.Name
+    Write-FunctionHeaderOrFooter -CmdletName $CmdletName -CmdletBoundParameters $PSBoundParameters -Header
+  }
+  
+  Process {
+
+    if(Test-Path -Path "$env:USERPROFILE\Desktop\Network Connections.lnk") 
+    {
+      Remove-Item -Path "$env:USERPROFILE\Desktop\Network Connections.lnk" -Force
+    }
+  
+    $ShortcutPath = Join-Path -Path $Destination -ChildPath $Name
+  
+    $Shell = New-Object -ComObject ('WScript.Shell')
+    $ShortCut = $Shell.CreateShortcut($ShortcutPath)
+    $ShortCut.TargetPath = $TargetPath
+    $ShortCut.Arguments = $Arguments
+    $ShortCut.WorkingDirectory = $WorkingDirectory
+    $ShortCut.WindowStyle = 1
+    $ShortCut.Hotkey = ''
+    $ShortCut.IconLocation = $IconLocation
+    $ShortCut.Description = $Description
+    $ShortCut.Save()
+
+  }
+  
+  End {
+    Write-FunctionHeaderOrFooter -CmdletName $CmdletName -Footer
+  }
+}
+
+function Unpin-App 
+{
+  [CmdletBinding()]
+  param
+  (
+    [string]
+    $Name
+  )
+
+  try 
+  {
+    $exec = $false
+
+    ((New-Object -ComObject Shell.Application).NameSpace('shell:::{4234d49b-0245-4df3-b780-3893943456e1}').Items() |
+      Where-Object -FilterScript {
+        $_.Name -eq $Name
+    }).Verbs() |
+    Where-Object -FilterScript {
+      $_.Name.replace('&','') -match 'Unpin from taskbar'
+    } |
+    ForEach-Object -Process {
+      $_.DoIt()
+      $exec = $true
+    }
+    if ($exec) 
+    {
+      Show-InstallationProgress -StatusMessage "App '$Name' unpinned from Taskbar"
+    }
+    else 
+    {
+      Show-InstallationProgress -StatusMessage "'$Name' not found or 'Unpin from taskbar' not found on item"
+    }
+  }
+  catch 
+  {
+    Write-Warning -Message "Error unpinning $Name from taskbar `n$(Resolve-Error)"
+  }
+}
+
+
+# Set Photo Viewer association for bmp, gif, jpg, png and tif
+function Set-PhotoViewerAssociation
+{
+  Show-InstallationProgress  -StatusMessage  'Setting Photo Viewer association for bmp, gif, jpg, png and tif...'
+
+  If (!(Test-Path -Path 'HKCR:'))
+  {
+    $null = New-PSDrive -Name HKCR -PSProvider Registry -Root HKEY_CLASSES_ROOT
+  }
+  ForEach ($Type in @('Paint.Picture', 'giffile', 'jpegfile', 'pngfile'))
+  {
+    $null = New-Item -Path $("HKCR:\$Type\shell\open") -Force
+    $null = New-Item -Path $("HKCR:\$Type\shell\open\command")
+    Set-ItemProperty -Path $("HKCR:\$Type\shell\open") -Name 'MuiVerb' -Type ExpandString -Value '@%ProgramFiles%\Windows Photo Viewer\photoviewer.dll,-3043'
+    Set-ItemProperty -Path $("HKCR:\$Type\shell\open\command") -Name '(Default)' -Type ExpandString -Value "%SystemRoot%\System32\rundll32.exe `"%ProgramFiles%\Windows Photo Viewer\PhotoViewer.dll`", ImageView_Fullscreen %1"
+  }
+}
+# Add Photo Viewer to "Open with..."
+function Add-PhotoViewerOpenWith
+{
+  Show-InstallationProgress -StatusMessage "Adding Photo Viewer to `"Open with...`""
+
+  If (!(Test-Path -Path 'HKCR:'))
+  {
+    $null = New-PSDrive -Name HKCR -PSProvider Registry -Root HKEY_CLASSES_ROOT
+  }
+  $null = New-Item -Path 'HKCR:\Applications\photoviewer.dll\shell\open\command' -Force
+  $null = New-Item -Path 'HKCR:\Applications\photoviewer.dll\shell\open\DropTarget' -Force
+  Set-ItemProperty -Path 'HKCR:\Applications\photoviewer.dll\shell\open' -Name 'MuiVerb' -Type String -Value '@photoviewer.dll,-3043'
+  Set-ItemProperty -Path 'HKCR:\Applications\photoviewer.dll\shell\open\command' -Name '(Default)' -Type ExpandString -Value "%SystemRoot%\System32\rundll32.exe `"%ProgramFiles%\Windows Photo Viewer\PhotoViewer.dll`", ImageView_Fullscreen %1"
+  Set-ItemProperty -Path 'HKCR:\Applications\photoviewer.dll\shell\open\DropTarget' -Name 'Clsid' -Type String -Value '{FFE2A43C-56B9-4bf5-9A79-CC6D4285608A}'
+}
+
+# Hide Task View button
+function Set-HideTaskView
+{
+  Show-InstallationProgress  -StatusMessage  'Hiding Task View button...'
+  Set-ItemProperty -Path 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced' -Name 'ShowTaskViewButton' -Type DWord -Value 0
+}
+
+
+# Hide 3D Objects icon from This PC - The icon remains in personal folders and open/save dialogs
+function Set-Hide3DObjectsFromThisPC
+{
+  Show-InstallationProgress  -StatusMessage  'Hide 3D Objects From This PC'
+  Remove-Item -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\MyComputer\NameSpace\{0DB7E03F-FC29-4DC6-9020-FF41B59E513A}' -Recurse -ErrorAction SilentlyContinue
+}
+
+# Hide 3D Objects icon from Explorer namespace - Hides the icon also from personal folders and open/save dialogs
+function Set-Hide3DObjectsFromExplorer
+{
+  Show-InstallationProgress  -StatusMessage  'Hide 3D Objects From Explorer'
+
+  If (!(Test-Path -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\FolderDescriptions\{31C0DD25-9439-4F12-BF41-7FF4EDA38722}\PropertyBag'))
+  {
+    $null = New-Item -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\FolderDescriptions\{31C0DD25-9439-4F12-BF41-7FF4EDA38722}\PropertyBag' -Force
+  }
+  Set-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\FolderDescriptions\{31C0DD25-9439-4F12-BF41-7FF4EDA38722}\PropertyBag' -Name 'ThisPCPolicy' -Type String -Value 'Hide'
+  If (!(Test-Path -Path 'HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Explorer\FolderDescriptions\{31C0DD25-9439-4F12-BF41-7FF4EDA38722}\PropertyBag'))
+  {
+    $null = New-Item -Path 'HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Explorer\FolderDescriptions\{31C0DD25-9439-4F12-BF41-7FF4EDA38722}\PropertyBag' -Force
+  }
+  Set-ItemProperty -Path 'HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Explorer\FolderDescriptions\{31C0DD25-9439-4F12-BF41-7FF4EDA38722}\PropertyBag' -Name 'ThisPCPolicy' -Type String -Value 'Hide'
+}
+
+function Uninstall-OneDrive 
+{
+  Show-InstallationProgress -StatusMessage 'Uninstall OneDrive'
+
+  taskkill.exe /F /IM 'OneDrive.exe'
+  taskkill.exe /F /IM 'explorer.exe'
+	
+  if (Test-Path -Path "$env:systemroot\System32\OneDriveSetup.exe")
+  {
+    & "$env:systemroot\System32\OneDriveSetup.exe" /uninstall
+  }
+  if (Test-Path -Path "$env:systemroot\SysWOW64\OneDriveSetup.exe")
+  {
+    & "$env:systemroot\SysWOW64\OneDriveSetup.exe" /uninstall
+  }
+  Start-Process -FilePath 'explorer.exe'
+}
+
+Function Disable-ApplicationsRunningInBackground
 {
   Begin {
     [string]$CmdletName = $PSCmdlet.MyInvocation.MyCommand.Name
@@ -824,24 +1370,45 @@ Function Disable-ApplicationsRunningINBackground
   
   Process {
 
-    Write-Log -Message 'Disable background access of default Windows 10 apps' -Source $CmdletName
+    Show-InstallationProgress -StatusMessage 'Disable background access of default Windows 10 apps' 
 	
     $BackgroundServicesRegisterKeys = @()
 
-    foreach ($key in (Get-ChildItem -Path 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications')) 
+    foreach ($Key in (Get-ChildItem -Path 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications')) 
     {
       $BackgroundServicesRegisterKeys += @(
         @{
-          Key         = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications' + $key.PSChildName
+          Key         = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications' + $Key.PSChildName
           Name        = 'Disabled'
           Value       = 1
-          Description = "Disable background access of apps [$($key.PSChildName)]"
+          Description = "Disable background access of apps '$($Key.PSChildName)'"
         }
       )
     }
     Set-RegistryValues -registerKeys $BackgroundServicesRegisterKeys
   }
   
+  End {
+    Write-FunctionHeaderOrFooter -CmdletName $CmdletName -Footer
+  }
+}
+
+
+Function  Clean-DesktopIcons 
+{
+  Begin {
+    [string]$CmdletName = $PSCmdlet.MyInvocation.MyCommand.Name
+    Write-FunctionHeaderOrFooter -CmdletName $CmdletName -CmdletBoundParameters $PSBoundParameters -Header
+  }
+	
+  Process {
+    Show-InstallationProgress -StatusMessage 'Clean up desktop icons.'
+
+    $EdgeLnk = 'Microsoft Edge.lnk'
+    Remove-Item -Path (Join-Path -Path "$env:USERPROFILE\Desktop" -ChildPath "$EdgeLnk") -Force -Confirm:$false -ErrorAction SilentlyContinue
+
+  }
+
   End {
     Write-FunctionHeaderOrFooter -CmdletName $CmdletName -Footer
   }
@@ -861,7 +1428,8 @@ Function Disable-WindowsThemeSounds
   }
 	
   Process {
-    Write-Log -Message 'Disable all windows sounds' -Source $CmdletName
+
+    Show-InstallationProgress -StatusMessage 'Disable all windows theme sounds'
     $ThemeSounds = Get-ChildItem -Path 'Registry::HKEY_CURRENT_USER\AppEvents\Schemes\Apps' -Recurse | Get-ItemProperty
     foreach ($RegKey in $ThemeSounds)
     {
@@ -890,21 +1458,23 @@ Function Remove-BuiltInPrinters
 
   Process {
 
+    Show-InstallationProgress -StatusMessage 'Remove Builtin Default Windows Printers'
+
     $PrintersToRemove = 'Microsoft XPS Document Writer', 'Send to OneNote 2016', 'Fax'
     foreach ($Printer in $PrintersToRemove)
     {
       $PrinterToFind = (Get-VirtualPrinter -PrinterName $Printer)
       if (!($PrinterToFind -eq $null))
       {
-        Write-Log -Message "Removing $Printer" -Source $CmdletName
+        Show-InstallationProgress -StatusMessage "Removing $Printer" 
         Try 
         {
           Remove-VirtualPrinter -PrinterName $Printer
         } 
         Catch 
         {
-          $Message = "Unable to remove [$Printer]"
-          Write-Log -Message "$Message. `n$(Resolve-Error)" -Severity 2 -Source $CmdletName
+          $Message = "Unable to remove printer '$Printer'"
+          Write-Warning -Message "$Message. `n$(Resolve-Error)"
           Continue
         }
       }
@@ -917,12 +1487,15 @@ Function Remove-BuiltInPrinters
   }
 }
 
-Function Invoke-SetHomeLocation
+Function Set-HomeLocation
 {
   [CmdletBinding()]
   param (
     [int]$Id = 1
   )
+
+  Show-InstallationProgress -StatusMessage 'Set Location'
+
   switch ($Id)
   {
     1            
@@ -964,7 +1537,7 @@ Function Set-IEDefaultSearchProvider
     $SearchScopes  = 'Registry::HKEY_CURRENT_USER\SOFTWARE\Microsoft\Internet Explorer\SearchScopes'
     $null = New-ItemProperty -Path "$SearchScopes" -Name 'DefaultScope' -PropertyType 'String' -Value '{A3C1E120-0692-4CFE-8F3E-FC214C255495}' -Force
 
-    Write-Log -Message 'Setting default search provider for IE to Google' -Source $CmdletName
+    Show-InstallationProgress -StatusMessage 'Setting default search provider for IE to Google' 
  
     $Guid = '{A3C1E120-0692-4CFE-8F3E-FC214C255495}'
     $null = New-Item -Path $SearchScopes -Name "$Guid" -Force
@@ -978,13 +1551,23 @@ Function Set-IEDefaultSearchProvider
     $null = New-ItemProperty -Path "$SearchScopes\$Guid" -Name 'TopResultURLFallback' -PropertyType 'String' -Value "$null" -Force
     $null = New-ItemProperty -Path "$SearchScopes\$Guid" -Name 'URL' -PropertyType 'String' -Value 'http://www.google.com/search?q={searchTerms}&sourceid=ie7&rls=com.microsoft:{language}:{referrer:source}&ie={inputEncoding?}&oe={outputEncoding?}' -Force
     $null = New-ItemProperty -Path "$SearchScopes\$Guid" -Name 'DefaultScope' -PropertyType 'String' -Value "$Guid" -Force 
-    
-    Write-Log -Message 'Adding Google Search' -Source $CmdletName
   }
 
   End {
     Write-FunctionHeaderOrFooter -CmdletName $CmdletName -Footer
   }
+}
+
+Function Enable-F8BootMenu 
+{
+  # Enable F8 boot menu options
+  $null = & "$env:windir\system32\bcdedit.exe" /set `{current`} bootmenupolicy Legacy
+}
+
+Function Disable-StartupRecovery 
+{
+  Write-Verbose -Message 'Disable-StartupRecovery'
+  $null = & "$env:windir\system32\bcdedit.exe" /set recoveryenabled No
 }
 
 Function Set-WindowsSearchWebResults
@@ -998,6 +1581,9 @@ Function Set-WindowsSearchWebResults
   }
 
   Process {
+    Show-InstallationProgress -StatusMessage 'Disabling Windows Search Web Results'
+
+
     Try 
     {
       Set-WindowsSearchSetting -EnableWebResultsSetting $false
@@ -1005,7 +1591,7 @@ Function Set-WindowsSearchWebResults
     Catch 
     {
       $Message = 'Unable to disable windows search web results the service may already be disabled'
-      Write-Log -Message "$Message. `n$(Resolve-Error)" -Severity 3 -Source $CmdletName
+      Write-Warning -Message "$Message. `n$(Resolve-Error)"
       Continue
     }
   }
@@ -1014,113 +1600,6 @@ Function Set-WindowsSearchWebResults
     Write-FunctionHeaderOrFooter -CmdletName $CmdletName -Footer
   }
 }
-
-Function Add-PowerShellContextMenu
-{
-  [CmdletBinding()]
-  param(
-    [Parameter(Position = 0)]
-    [ValidateSet('openPowerShellHere','editWithPowerShellISE')]
-    $contextType,
-    $platform = 'x64',
-    [switch]$noProfile,
-    [switch]$asAdmin
-  )
-	
-  Begin {
-    [string]$CmdletName = $PSCmdlet.MyInvocation.MyCommand.Name
-    Write-FunctionHeaderOrFooter -CmdletName $CmdletName -CmdletBoundParameters $PSBoundParameters -Header
-  }
-	
-  Process {
-
-    $versionToOpen = 'PowerShell (x64)'
-    $powerShellExe = 'powershell.exe'
-    if ($contextType -eq 'editWithPowerShellISE') 
-    { 
-      $powerShellExe = 'PowerShell_ISE.exe' 
-      $versionToOpen = 'PowerShell ISE (x64)'
-    }
-    $PowerShellPath = "$env:windir\sysWOW64\WindowsPowerShell\v1.0\$powerShellExe"
-    if ($platform -eq 'x86')
-    { 
-      $PowerShellPath = "$env:windir\sysWOW64\WindowsPowerShell\v1.0\$powerShellExe" 
-      $versionToOpen = $versionToOpen -replace 'x64', 'x86'
-    }
-    if ($contextType -eq 'openPowerShellHere')
-    {
-      $menu = "Open Windows $versionToOpen here"
-      $command = "$PowerShellPath -NoExit -Command ""Set-Location '%V'"""
-      if ($noProfile.IsPresent)
-      {
-        $command = $command -replace 'NoExit', 'NoExit -noProfile'
-      }
-      if ($asAdmin.IsPresent)
-      {
-        $menu += ' as Administrator'
-        'directory', 'directory\background', 'drive' | ForEach-Object -Process {
-          New-Item -Path "Registry::HKEY_CLASSES_ROOT\$_\shell" -Name runas\command -Force |
-          Set-ItemProperty -Name '(default)' -Value $command -PassThru |
-          Set-ItemProperty -Path {
-            $_.PSParentPath
-          } -Name '(default)' -Value $menu -PassThru |
-          Set-ItemProperty -Name HasLUAShield -Value ''
-        }
-      }
-      else
-      {
-        'directory', 'directory\background', 'drive' | ForEach-Object -Process {
-          $null = New-Item -Path "Registry::HKEY_CLASSES_ROOT\$_\shell" -Name $menu -Value $menu -Force
-          $null = New-Item -Path "Registry::HKEY_CLASSES_ROOT\$_\shell\$menu\command" -Value $command
-        }
-      }
-    }
-    elseif($contextType -eq 'editWithPowerShellISE')
-    {
-      $menu = "Edit with $versionToOpen"
-      $command = $PowerShellPath
-      if ($noProfile.IsPresent)
-      {
-        $command += ' -noProfile'
-      }
-      if($asAdmin.IsPresent)
-      {
-        $menu += ' as Administrator'
-        Get-ChildItem -Path 'Registry::HKEY_CLASSES_ROOT' |
-        Where-Object -Property [ PSChildName -Like -Value 'Microsoft.PowerShell*' |
-        ForEach-Object -Process {
-          if (!(Test-Path -Path "Registry::$($_.Name)\shell"))
-          {
-            $null = New-Item -Path "Registry::$($_.Name)\shell"
-          }
-          New-Item -Path "Registry::$($_.Name)\shell\" -Name runas\command -Force |
-          Set-ItemProperty -Name '(default)' -Value "$command ""%1""" -PassThru |
-          Set-ItemProperty -Path {
-            $_.PSParentPath
-          } -Name '(default)' -Value $menu -PassThru |
-          Set-ItemProperty -Name HasLUAShield -Value ''
-        }
-      }
-      else
-      {
-        Get-ChildItem -Path 'Registry::HKEY_CLASSES_ROOT' |
-        Where-Object -Property PSChildName -Like -Value 'Microsoft.PowerShell*' |
-        ForEach-Object -Process {
-          if (!(Test-Path -Path "Registry::$($_.Name)\shell"))
-          {
-            $null = New-Item -Path "Registry::$($_.Name)\shell"
-          }
-          $null = New-Item -Path "Registry::$($_.Name)\shell\$menu\command" -Value "$command ""%1""" -Force  
-        }
-      }
-    }
-    
-  }
-  End {
-    Write-FunctionHeaderOrFooter -CmdletName $CmdletName -Footer
-  }
-}
-
 
 Function Test-IsDesktop
 {
@@ -1148,109 +1627,128 @@ Function Test-IsDesktop
   }
 }
 
-Function Test-NetworkConnection
-{
-  <#
-      .SYNOPSIS
-      Tests for an active local network connection, excluding wireless and virtual network adapters.
-      .DESCRIPTION
-      Tests for an active local network connection, excluding wireless and virtual network adapters, by querying the Win32_NetworkAdapter WMI class.
-      .EXAMPLE
-      Test-NetworkConnection
-      .NOTES
-      .LINK
-	
-  #>
-  [CmdletBinding()]
-  Param (
-  )
-	
-  Begin {
-    ## Get the name of this function and write header
-    [string]${CmdletName} = $PSCmdlet.MyInvocation.MyCommand.Name
-    Write-FunctionHeaderOrFooter -CmdletName ${CmdletName} -CmdletBoundParameters $PSBoundParameters -Header
-  }
-  Process {
-    Write-Log -Message 'Check if system is using a wired network connection...' -Source ${CmdletName}
-		
-    [psobject[]]$networkConnected = Get-WmiObject -Class 'Win32_NetworkAdapter' | Where-Object -FilterScript {
-      ($_.NetConnectionStatus -eq 2) -and ($_.NetConnectionID -match 'Local') -or ($_.NetConnectionID -match 'Ethernet') -and ($_.NetConnectionID -notmatch 'Wireless') -and ($_.Name -notmatch 'Virtual')
-    } -ErrorAction 'SilentlyContinue'
-    [boolean]$onNetwork = $false
-    If ($networkConnected) 
-    {
-      Write-Log -Message 'Wired network connection found.' -Source ${CmdletName}
-      [boolean]$onNetwork = $true
-    }
-    Else 
-    {
-      Write-Log -Message 'Wired network connection not found.' -Source ${CmdletName}
-    }
-		
-    Write-Output -InputObject $onNetwork
-  }
-  End {
-    Write-FunctionHeaderOrFooter -CmdletName ${CmdletName} -Footer
-  }
-}
 
-Function Invoke-TakeownRegistry 
+Function Disable-BeepService
 {
-  # TODO: does not work for all root keys yet
-
-  [CmdletBinding()]
-  param
-  (
-    [Parameter(Mandatory = $true)][string]$key
-  )
-  
   Begin {
-    [string]$CmdletName = $PSCmdlet.MyInvocation.MyCommand.Name
+    [string]$CmdletName = $MyInvocation.MyCommand.Name
     Write-FunctionHeaderOrFooter -CmdletName $CmdletName -CmdletBoundParameters $PSBoundParameters -Header
   }
-    
   Process 
   {
-    switch ($key.split('\')[0]) {
-      'HKEY_CLASSES_ROOT' 
-      {
-        $reg = [Microsoft.Win32.Registry]::ClassesRoot
-        $key = $key.substring(18)
-      }
-      'HKEY_CURRENT_USER' 
-      {
-        $reg = [Microsoft.Win32.Registry]::CurrentUser
-        $key = $key.substring(18)
-      }
-      'HKEY_LOCAL_MACHINE' 
-      {
-        $reg = [Microsoft.Win32.Registry]::LocalMachine
-        $key = $key.substring(19)
-      }
-    }
 
-    # Get administrators Group
-    $admins = New-Object -TypeName System.Security.Principal.SecurityIdentifier -ArgumentList ('S-1-5-32-544')
-    $admins = $admins.Translate([Security.Principal.NTAccount])
-
-    # Set Owner
-    $key = $reg.OpenSubKey($key, 'ReadWriteSubTree', 'TakeOwnership')
-    $acl = $key.GetAccessControl()
-    $acl.SetOwner($admins)
-    $key.SetAccessControl($acl)
-
-    # Set FullControl
-    $acl = $key.GetAccessControl()
-    $rule = New-Object -TypeName System.Security.AccessControl.RegistryAccessRule -ArgumentList ($admins, 'FullControl', 'Allow')
-    $acl.SetAccessRule($rule)
-    $key.SetAccessControl($acl)
-  } 
-  
-  End {
+    Show-InstallationProgress -StatusMessage 'Windows Beep Service, stops annoying beeps in powershell console'
+    Set-Service -Name beep -StartupType disabled
+  }
+  End 
+  {
     Write-FunctionHeaderOrFooter -CmdletName $CmdletName -Footer
   }
 }
 
+function Takeown-Registry 
+{
+  # TODO does not work for all root keys yet
+    
+  [CmdletBinding()]
+  param
+  (
+    $Key
+  )
+  switch ($Key.split('\')[0]) {
+    'HKEY_CLASSES_ROOT' 
+    {
+      $reg = [Microsoft.Win32.Registry]::ClassesRoot
+      $Key = $Key.substring(18)
+    }
+    'HKEY_CURRENT_USER' 
+    {
+      $reg = [Microsoft.Win32.Registry]::CurrentUser
+      $Key = $Key.substring(18)
+    }
+    'HKEY_LOCAL_MACHINE' 
+    {
+      $reg = [Microsoft.Win32.Registry]::LocalMachine
+      $Key = $Key.substring(19)
+    }
+  }
+
+  # get administraor group
+  $admins = New-Object -TypeName System.Security.Principal.SecurityIdentifier -ArgumentList ('S-1-5-32-544')
+  $admins = $admins.Translate([System.Security.Principal.NTAccount])
+
+  # set owner
+  $Key = $reg.OpenSubKey($Key, 'ReadWriteSubTree', 'TakeOwnership')
+  $acl = $Key.GetAccessControl()
+  $acl.SetOwner($admins)
+  $Key.SetAccessControl($acl)
+
+  # set FullControl
+  $acl = $Key.GetAccessControl()
+  $rule = New-Object -TypeName System.Security.AccessControl.RegistryAccessRule -ArgumentList ($admins, 'FullControl', 'Allow')
+  $acl.SetAccessRule($rule)
+  $Key.SetAccessControl($acl)
+}
+
+function Takeown-File 
+{
+  [CmdletBinding()]
+  param
+  (
+    $Path
+  )
+  takeown.exe /A /F $Path
+  $acl = Get-Acl -Path $Path
+
+  # get administraor group
+  $admins = New-Object -TypeName System.Security.Principal.SecurityIdentifier -ArgumentList ('S-1-5-32-544')
+  $admins = $admins.Translate([System.Security.Principal.NTAccount])
+
+  # add NT Authority\SYSTEM
+  $rule = New-Object -TypeName System.Security.AccessControl.FileSystemAccessRule -ArgumentList ($admins, 'FullControl', 'None', 'None', 'Allow')
+  $acl.AddAccessRule($rule)
+
+  Set-Acl -Path $Path -AclObject $acl
+}
+
+function Takeown-Folder
+{
+  [CmdletBinding()]
+  param
+  (
+    [string]$Path
+  )
+  Takeown-File -Path $Path
+  foreach ($item in Get-ChildItem -Path $Path) 
+  {
+    if (Test-Path -Path $item -PathType Container) 
+    {
+      Takeown-Folder -path $item.FullName
+    }
+    else 
+    {
+      Takeown-File -Path $item.FullName
+    }
+  }
+}
+
+function Force-Mkdir 
+{
+  param
+  (
+    [Parameter(Mandatory = $true)]
+    [string]$Path
+  )
+  
+  # While `mkdir -force` works fine when dealing with regular folders, it behaves
+  # strange when using it at registry level. If the target registry key is
+  # already present, all values within that key are purged.
+
+  if (-Not (Test-Path -Path $Path)) 
+  {
+    New-Item -ItemType Directory -Force -Path $Path
+  }
+}
 
 
 

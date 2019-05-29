@@ -19,7 +19,7 @@ Try
   ## Set the script execution policy for this process
   Try 
   {
-    Set-ExecutionPolicy -ExecutionPolicy 'ByPass' -Scope 'Process' -Force -ErrorAction 'Stop' 
+    Set-ExecutionPolicy -ExecutionPolicy 'ByPass' -Scope 'Process' -Force -ErrorAction 'Stop'
   }
   Catch 
   {
@@ -59,11 +59,11 @@ Try
   ## Variables: Environment
   If (Test-Path -LiteralPath 'variable:HostInvocation') 
   {
-    $InvocationInfo = $HostInvocation 
+    $InvocationInfo = $HostInvocation
   }
   Else 
   {
-    $InvocationInfo = $MyInvocation 
+    $InvocationInfo = $MyInvocation
   }
   [string]$scriptDirectory = Split-Path -Path $InvocationInfo.MyCommand.Definition -Parent
 	
@@ -73,22 +73,22 @@ Try
     [string]$moduleAppDeployToolkitMain = "$scriptDirectory\AppDeployToolkit\AppDeployToolkitMain.ps1"
     If (-not (Test-Path -LiteralPath $moduleAppDeployToolkitMain -PathType 'Leaf')) 
     {
-      Throw "Module does not exist at the specified location [$moduleAppDeployToolkitMain]." 
+      Throw "Module does not exist at the specified location [$moduleAppDeployToolkitMain]."
     }
     If ($DisableLogging) 
     {
-      . $moduleAppDeployToolkitMain -DisableLogging 
+      . $moduleAppDeployToolkitMain -DisableLogging
     }
     Else 
     {
-      . $moduleAppDeployToolkitMain 
+      . $moduleAppDeployToolkitMain
     }
   }
   Catch 
   {
     If ($mainExitCode -eq 0)
     {
-      [int32]$mainExitCode = 60008 
+      [int32]$mainExitCode = 60008
     }
     Write-Error -Message "Module [$moduleAppDeployToolkitMain] failed to load: `n$($_.Exception.Message)`n `n$($_.InvocationInfo.PositionMessage)" -ErrorAction 'Continue'
     ## Exit the script, returning the exit code to SCCM
@@ -99,7 +99,7 @@ Try
     }
     Else 
     {
-      Exit $mainExitCode 
+      Exit $mainExitCode
     }
   }
 	
@@ -125,172 +125,639 @@ Try
     
     
     Show-InstallationWelcome -Silent
-		
-    ##*===============================================
-    ##* INSTALLATION 
-    ##*===============================================
+
+    ##*##########################################
+    ##*  
+    ##* Install Software
+    ##*
+    ##*###########################################
+
+    <#
+        Show-InstallationProgress -StatusMessage 'Installing Chocolatey Packages'
+        Install-ChocolateyPackage -Package @(
+        'vcredist-all'
+        'winscp'
+        'ussf'
+        'ffmpeg'
+        'sudo'
+        'googlechrome'
+        'directx'
+        '7zip.install'
+        'ccleaner'
+        'chocolatey-core.extension'
+        'chocolatey-uninstall.extension'
+        'chocolatey-visualstudio.extension'
+        'chocolatey-windowsupdate.extension'
+        'cpu-z.install'
+        'discord'
+        'ffmpeg'
+        #'geforce-game-ready-driver-win10'
+        'git.install'
+        'gpu-z'
+        'grepwin'
+        'irfanviewplugins'
+        'irfanview'
+        'k-litecodecpackfull'
+        #'kodi'
+        'nircmd'
+        'notepadplusplus.install'
+        #'Office365ProPlus'
+        #'PSWindowsUpdate'
+        'putty.install'
+        'pycharm-community'
+        'python2'
+        #'qbittorrent'
+        #'ipfilter-updater'
+        #'rsat'
+        #'Shotcut'
+        #'sysinternals'
+        #'WhatsApp'
+        #'youtube-dl'
+        )
+
+    #>
+
+    #Show-InstallationProgress  -StatusMessage  'Installing CCEnhancer'
+    #Install-CCEnhancer 
+        
+    Show-InstallationProgress  -StatusMessage  'Installing CMTrace'
+    Invoke-InstallCMTrace
+
+    ##*##########################################
+    ##*  
+    ##* Quality of Life Tweaks and Settings
+    ##*
+    ##*###########################################
+
     [string]$installPhase = 'Installation'
 
-    Show-InstallationProgress  -StatusMessage 'Disabling Windows theme sounds.'
-    Disable-WindowsThemeSounds
-      
-    Show-InstallationProgress  -StatusMessage 'Setting IE Default Search Provider to Google.'
-    Set-IEDefaultSearchProvider
-        
-    Show-InstallationProgress  -StatusMessage  'Disabling Windows Search Web Results'
-    Set-WindowsSearchWebResults
     
-    Show-InstallationProgress  -StatusMessage  'Disable background access of default Windows 10 apps'
-    Disable-ApplicationsRunningINBackground
+    Disable-WindowsThemeSounds
 
-    Show-InstallationProgress  -StatusMessage  'Enable High Performance Power Plan'
-    Set-WindowsPowerPlan -HighPerformance
-      
-    Show-InstallationProgress  -StatusMessage  'Disabling unneeded windows services'
-    Disable-WindowsService -Services @(
-      'diagnosticshub.standardcollector.service' # Microsoft Diagnostics Hub Standard Collector Service
-      'DiagTrack'                                # Diagnostics Tracking Service
-      'dmwappushservice'                         # WAP Push Message Routing Service
-      'HomeGroupListener'                        # HomeGroup Listener
-      'HomeGroupProvider'                        # HomeGroup Provider
-      'lfsvc'                                    # Geolocation Service
-      'MapsBroker'                               # Downloaded Maps Manager
-      'SharedAccess'                             # Internet Connection Sharing (ICS)
-      'WbioSrvc'                                 # Windows Biometric Service
-      'WMPNetworkSvc'                            # Windows Media Player Network Sharing Service
-      'XblAuthManager'                           # Xbox Live Auth Manager
-      'XblGameSave'                              # Xbox Live Game Save Service
-      'XboxNetApiSvc'                            # Xbox Live Networking Service
-      'TrkWks'                                   # Distributed Link Tracking Client. Description: Maintains links between NTFS files within a computer or across computers in a network.
-    'beep')                                    # Windows Beep Service, stops annoying beeps in powershell console
-      
-    Show-InstallationProgress  -StatusMessage  'Removing Builtin Windows Applications'
-    Remove-BuiltinWindowsApplications -apps @(
-      'Microsoft.Windows.CloudExperienceHost'
-      'Microsoft.Windows.ShellExperienceHost'
-      'Microsoft.AAD.BrokerPlugin'
-      'Microsoft.Windows.Cortana'
-      'Microsoft.Appconnector'
-      'Microsoft.Messaging'
-      'Microsoft.Windows.Apprep.ChxApp'
-      'Microsoft.Windows.AssignedAccessLockApp'
-      'Microsoft.Windows.ContentDeliveryManager'
-      'Microsoft.Windows.ParentalControls'
-      'Microsoft.Windows.SecondaryTileExperience'
-      'Microsoft.Windows.SecureAssessmentBrowser'
-      'Microsoft.AccountsControl'
-      'Microsoft.LockApp'
-      'Microsoft.MicrosoftEdge'
-      'Microsoft.PPIProjection'
-      'Windows.PrintDialog'
-      'Microsoft.StorePurchaseApp'
-      'Microsoft.NET.Native.Runtime.1.3'
-      'Microsoft.NET.Native.Runtime.1.1'
-      'Microsoft.NET.Native.Framework.1.3' 
-      'Microsoft.NET.Native.Runtime.1.4' 
-      'Microsoft.VCLibs.140.00' 
-      'Microsoft.VCLibs.120.00' 
-      'Microsoft.BingTranslator' 
-      'Microsoft.DesktopAppInstaller'
-      'Microsoft.MicrosoftStickyNotes'
-      'Microsoft.BingWeather'
-      'Microsoft.WindowsMaps'
-      'Microsoft.WindowsSoundRecorder'
-      'Microsoft.Windows.Photos'
-      'Microsoft.WindowsStore'
-      'Microsoft.WindowsAlarms'
-      'microsoft.WindowsCommunicationsApps'
-    'Microsoft.WindowsCalculator')
-      
-    Show-InstallationProgress  -StatusMessage  'Installing Chocolatey Packages'
-    Install-ChocolateyPackage -Package @(
-      'vcredist-all'
-      'winscp'
-      'ussf'
-      'ffmpeg'
-      'sudo'
-      'googlechrome'
-      'directx'
-      '7zip.install'
-      'ccleaner'
-      'chocolatey-core.extension'
-      'chocolatey-uninstall.extension'
-      'chocolatey-visualstudio.extension'
-      'chocolatey-windowsupdate.extension'
-      'cpu-z.install'
-      'discord'
-      'ffmpeg'
-      'geforce-game-ready-driver-win10'
-      'git.install'
-      'gpu-z'
-      'grepwin'
-      'irfanviewplugins'
-      'irfanview'
-      'k-litecodecpackfull'
-      'kodi'
-      'nircmd'
-      'notepadplusplus.install'
-      'Office365ProPlus'
-      'PSWindowsUpdate'
-      'putty.install'
-      'pycharm-community'
-      'python2'
-      'qbittorrent'
-      'ipfilter-updater'
-      'rsat'
-      'Shotcut'
-      'sysinternals'
-      'WhatsApp'
-      'youtube-dl'
-    )
-      
-    Show-InstallationProgress  -StatusMessage  'Installing CCEnhancer'
-    Invoke-InstallCCEnhancer
-      
-    Show-InstallationProgress  -StatusMessage  'Disabling Scheduled Tasks'
-    Invoke-DisableScheduledTasks -tasks @(
-      'Microsoft\Windows\AppID\SmartScreenSpecific'
-      'Microsoft\Windows\Application Experience\Microsoft Compatibility Appraiser'
-      'Microsoft\Windows\Application Experience\ProgramDataUpdater'
-      'Microsoft\Windows\Application Experience\StartupAppTask'
-      'Microsoft\Windows\Autochk\Proxy'
-      'Microsoft\Windows\CloudExperienceHost\CreateObjectTask'
-      'Microsoft\Windows\Customer Experience Improvement Program\Consolidator'
-      'Microsoft\Windows\Customer Experience Improvement Program\KernelCeipTask'
-      'Microsoft\Windows\Customer Experience Improvement Program\UsbCeip'
-      'Microsoft\Windows\Customer Experience Improvement Program\Uploader'
-      'Microsoft\Windows\DiskDiagnostic\Microsoft-Windows-DiskDiagnosticDataCollector'
-      'Microsoft\Windows\DiskFootprint\Diagnostics'
-      'Microsoft\Windows\FileHistory\File History (maintenance mode)'
-      'Microsoft\Windows\Maintenance\WinSAT'
-      'Microsoft\Windows\NetTrace\GatherNetworkInfo'
-      'Microsoft\Windows\PI\Sqm-Tasks'
-      'Microsoft\Windows\Windows Error Reporting\QueueReporting'
-      'Microsoft\Windows\WindowsUpdate\Automatic App Update'
-      'Microsoft\Office\Office 15 Subscription Heartbeat'
-      'Microsoft\Office\OfficeTelemetryAgentFallBack'
-      'Microsoft\Office\OfficeTelemetryAgentLogOn'
-      'Microsoft\Windows\Feedback\Siuf\DmClient'
-      'Microsoft\Windows\Mobile Broadband Accounts\MNO Metadata Parser'
-      '\NvTmMon_{B2FE1952-0186-46C3-BAEC-A80AA35AC5B8}' # Nvidia Telemetry
-      '\NvTmRep_{B2FE1952-0186-46C3-BAEC-A80AA35AC5B8' # Nvidia Telemetry
-    '\NvTmRepOnLogon_{B2FE1952-0186-46C3-BAEC-A80AA35AC5B8}') # Nvidia Telemetry
-      
-    Show-InstallationProgress  -StatusMessage 'Adding powershell to right click context menu'
-    Add-PowerShellContextMenu -contextType editWithPowerShellISE -platform x64 -asAdmin -noProfile
-    Add-PowerShellContextMenu -contextType openPowerShellHere -platform x64 -asAdmin -noProfile
+    Clean-DesktopIcons
 
-    Show-InstallationProgress  -StatusMessage 'Adding Windows Features'
+    
+    Set-TerminalShortcutsAsAdmin
+    
+    Unpin-App  -Name 'Microsoft Edge'
+    Unpin-App  -Name 'Mail' 
+    Unpin-App  -Name 'Microsoft Store'
+
+    
+    $NetworkConnection = @{
+      Name             = 'Network Connections.lnk'
+      TargetPath       = 'explorer.exe'
+      Arguments        = '::{7007ACC7-3202-11D1-AAD2-00805FC1270E}'
+      IconLocation     = 'shell32.dll, 88'
+      Description      = 'Network Connections'
+      WorkingDirectory = $null
+      Destination      = Join-Path -Path  $env:USERPROFILE -ChildPath 'Desktop'
+    }
+
+    New-Shortcut @NetworkConnection
+
+    
+    $ControlPanel = @{
+      Name             = 'Control Panel.lnk'
+      TargetPath       = 'RunDll32.exe '
+      Arguments        = 'shell32.dll,Control_RunDLL'
+      IconLocation     = 'shell32.dll, 207'
+      Description      = 'Control Panel'
+      WorkingDirectory = $null
+      Destination      = Join-Path -Path  $env:USERPROFILE -ChildPath 'Desktop'
+    }
+    New-Shortcut @ControlPanel
+
+    
+    
     Invoke-AddWindowsFeatures -feature @(
       'NetFx3'
     )
-      
-    Show-InstallationProgress -StatusMessage 'Applying page file settings'
-    Set-PageFile -AutoConfigure -DriveLetter $($env:SystemDrive.Replace(':',''))
 
-    Show-InstallationProgress -StatusMessage 'Disable DEP'
-    Set-DEPOptOut
-      
+    # Disable other windows annoyances
+    $registerKeys += @(
+      @{
+        Key         = 'HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Policies\Attachments'
+        Name        = 'SaveZoneInformation'
+        Value       = 1
+        Description = 'Disable saving zone information to files eg: Unblock file in file properties'
+      }
+
+      @{
+        Key         = 'HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Policies\Associations'
+        Name        = 'LowRiskFileTypes '
+        Value       = '.zip;.rar;.nfo;.txt;.exe;.bat;.vbs;.com;.cmd;.reg;.msi;.htm;.html;.gif;.bmp;.jpg;.avi;.mpg;.mpeg;.mov;.mp3;.m3u;.wav;'
+        Description = 'Disable this publisher could not be verified message when running an executable'
+      }
+    )
+
+	
+    # Mouse Settings
+    $registerKeys += @(
+      @{
+        Key         = 'HKEY_CURRENT_USER\Control Panel\Mouse'
+        Name        = 'MouseSpeed'
+        Value       = 0
+        Description = 'Disable Mouse Acceleration'
+      }
+      @{
+        Key         = 'HKEY_CURRENT_USER\Control Panel\Mouse'
+        Name        = 'MouseSensitivity'
+        Value       = 10
+        Description = 'Disable Mouse Acceleration MouseSensitivity'
+      }
+      @{
+        Key         = 'HKEY_CURRENT_USER\Control Panel\Mouse'
+        Name        = 'MouseThreshold1'
+        Value       = 0
+        Description = 'Disable Mouse Acceleration MouseThreshold1'
+      }
+      @{
+        Key         = 'HKEY_CURRENT_USER\Control Panel\Mouse'
+        Name        = 'MouseThreshold2'
+        Value       = 0
+        Description = 'Disable Mouse Acceleration MouseThreshold2'
+      }
+      @{
+        Key         = 'HKEY_CURRENT_USER\Control Panel\Mouse'
+        Name        = 'SmoothMouseYCurve'
+        Value       = ([byte[]](0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x38, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x70, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xA8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xE0, 0x00, 0x00, 0x00, 0x00, 0x00))
+        Description = 'Disable Mouse Acceleration SmoothMouseYCurve'
+      }
+      @{
+        Key         = 'HKEY_CURRENT_USER\Control Panel\Mouse'
+        Name        = 'SmoothMouseXCurve'
+        Value       = ([byte[]](0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xC0, 0xCC, 0x0C, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x99, 0x19, 0x00, 0x00, 0x00, 0x00, 0x00, 0x40, 0x66, 0x26, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x33, 0x33, 0x00, 0x00, 0x00, 0x00, 0x00))
+        Description = 'Disable Mouse Acceleration SmoothMouseXCurve'
+      }
+      @{
+        Key         = 'HKEY_CURRENT_USER\Control Panel\Desktop'
+        Name        = 'UserPreferencesMask'
+        Value       = ([byte[]](0x9e, 0x1e, 0x06, 0x80, 0x12, 0x00, 0x00, 0x00))
+        Description = 'Disable mouse pointer hiding'
+      }
+    )
+
+    # Accessibility Settings
+    $registerKeys += @(
+      @{
+        Key         = 'HKEY_CURRENT_USER\Control Panel\Accessibility\StickyKeys'
+        Name        = 'Flags'
+        Value       = '506'
+        Description = 'Disable sticky keys'
+      }
+      @{
+        Key   = 'HKEY_CURRENT_USER\Control Panel\Accessibility\Keyboard Response'
+        Name  = 'Flags'
+        Value = '122'
+      }
+      @{
+        Key         = 'HKEY_CURRENT_USER\Control Panel\Accessibility\ToggleKeys'
+        Name        = 'Flags'
+        Value       = '58'
+        Description = 'Disable toggle keys'
+      }
+      @{
+        Key         = 'HKEY_CURRENT_USER\Control Panel\Desktop\Keyboard'
+        Name        = 'KeyboardDelay'
+        Value       = 0
+        Description = 'Set keyboard repeat delay'
+      }
+    )
+
+    	
+    $registerKeys += @(
+      @{
+        Key         = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\OperationStatusManager'
+        Name        = 'EnthusiastMode'
+        Value       = 1
+        Description = 'Show file operations details'
+      }
+    )
+
+    		
+    # Color and theme settings
+    $registerKeys += @(
+      @{
+        Key         = 'HKEY_CURRENT_USER\Control Panel\Colors'
+        Name        = 'Background'
+        Value       = '0 0 0'
+        Description = 'Set desktop default Background color to black'
+      }
+      @{
+        Key         = 'HKEY_CURRENT_USER\Control Panel\Desktop'
+        Name        = 'WallPaper'
+        Value       = "$env:SystemDrive\Windows\Web\Wallpaper\Windows\img0.jpg"
+        Description = 'Set desktop default wallpaper'
+      }
+    )
+			
+    # Explorer Settings
+    $registerKeys += @(
+      @{
+        Key         = 'HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
+        Name        = 'DisableThumbnailCache'
+        Value       = 1
+        Description = 'Disable creation of Thumbs.db thumbnail cache files'
+      }
+      @{
+        Key         = 'HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
+        Name        = 'HideFileExt'
+        Value       = 0
+        Description = 'Hide file extensions'
+      }
+      @{
+        Key         = 'HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
+        Name        = 'Hidden'
+        Value       = 1
+        Description = 'Show hidden files'
+      }
+      @{
+        Key         = 'HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
+        Name        = 'ShowSuperHidden'
+        Value       = 0
+        Description = 'Show hidden operating system files'
+      }
+				
+      @{
+        Key         = 'HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
+        Name        = 'HideDrivesWithNoMedia'
+        Value       = 0
+        Description = 'Hide drives with no media'
+      }
+      @{
+        Key         = 'HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
+        Name        = 'NavPaneExpandToCurrentFolder'
+        Value       = 0
+        Description = 'Expand to current folder in the left panel in Explorer'
+      }
+      @{
+        Key         = 'HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
+        Name        = 'LaunchTo'
+        Value       = 1
+        Description = 'Change default Explorer view to This PC'
+      }
+      @{
+        Key         = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
+        Name        = 'ShowSyncProviderNotifications'
+        Value       = 0
+        Description = 'Ads in File Explorer'
+      }
+      @{
+        Key         = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
+        Name        = 'SubscribedContent-310093Enabled'
+        Value       = 0
+        Description = 'Show me the Windows welcome experience after updates and occasionally'
+      }
+      @{
+        Key         = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
+        Name        = 'SubscribedContent-338389Enabled'
+        Value       = 0
+        Description = 'Get tips, tricks, suggestions as you use Windows'
+      }
+    )
+
+    # Disable Start Menu suggestions
+    $registerKeys += @(
+      @{
+        Key         = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'
+        Name        = 'SystemPaneSuggestionsEnabled'
+        Value       = 0
+        Description = 'Disable Start Menu suggestions'
+      }
+      @{
+        Key         = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'
+        Name        = 'SilentInstalledAppsEnabled'
+        Value       = 0
+        Description = 'Disable microsoft shoehorning apps quietly into your profile'
+      }
+      @{
+        Key         = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'
+        Name        = 'SubscribedContent-338387Enabled'
+        Value       = 0
+        Description = 'Disable show suggestions occasionally'
+      }
+      @{
+        Key         = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'
+        Name        = 'SubscribedContent-338388Enabled'
+        Value       = 0
+        Description = 'Disable show suggestions occasionally'
+      }
+      @{
+        Key         = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'
+        Name        = 'SubscribedContent-353698Enabled'
+        Value       = 0
+        Description = 'Disable show suggestions in timeline'
+      }
+      @{
+        Key         = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'
+        Name        = 'SubscribedContent-338393Enabled'
+        Value       = 0
+        Description = 'Disable show suggested content in settings'
+      }
+      @{
+        Key         = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'
+        Name        = 'SubscribedContent-353694Enabled'
+        Value       = 0
+        Description = 'Disable show suggested content in settings'
+      }
+    )
+				
+    # Lockscreen suggestions, rotating pictures and pre-installed apps
+    $registerKeys += @(
+      @{
+        Key         = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'
+        Name        = 'SoftLandingEnabled'
+        Value       = 0
+        Description = 'Disable Lockscreen suggestions'
+      }
+      @{
+        Key         = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'
+        Name        = 'RotatingLockScreenEnabled'
+        Value       = 0
+        Description = 'Disable Lockscreen rotating pictures'
+      }
+      @{
+        Key         = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'
+        Name        = 'RotatingLockScreenOverlayEnabled'
+        Value       = 0
+        Description = 'Disable Lockscreen rotating pictures'
+      }
+      @{
+        Key         = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'
+        Name        = 'PreInstalledAppsEnabled'
+        Value       = 0
+        Description = 'Disable preinstalled apps, Minecraft and Twitter etc'
+      }
+      @{
+        Key         = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'
+        Name        = 'PreInstalledAppsEverEnabled'
+        Value       = 0
+        Description = 'Disable preinstalled apps, Minecraft and Twitter etc'
+      }
+      @{
+        Key   = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'
+        Name  = 'OEMPreInstalledAppsEnabled'
+        Value = 0
+      }
+      @{
+        Key   = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'
+        Name  = 'ContentDeliveryAllowed'
+        Value = 0
+      }
+      @{
+        Key   = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'
+        Name  = 'SubscribedContentEnabled'
+        Value = 0
+      }
+    )
+
+    $registerKeys += @(
+      @{
+        Key         = 'HKEY_CURRENT_USER\Console'
+        Name        = 'QuickEdit'
+        Value       = 1
+        Description = 'Quick Edit Command Prompt'
+      }
+    )
+
+    # Dark Theme
+    $registerKeys += @(
+      @{
+        Key         = 'HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize'
+        Name        = 'AppsUseLightTheme'
+        Value       = 0
+        Description = 'Enable Dark Theme for XAML apps'
+      }
+    )
+ 
+    # Taskbar settings
+    $registerKeys += @(
+      @{
+        Key         = 'HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
+        Name        = 'TaskbarSmallIcons'
+        Value       = 1
+        Description = 'Set taskbar icons to small'
+      }
+      @{
+        Key         = 'HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
+        Name        = 'ShowTaskViewButton'
+        Value       = 0
+        Description = 'Hide Task View button'
+      }
+      @{
+        Key         = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Search'
+        Name        = 'SearchboxTaskbarMode'
+        Value       = 0
+        Description = 'Show Taskbar Search button / box'
+      }
+      @{
+        Key         = 'HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced\People'
+        Name        = 'PeopleBand'
+        Value       = 0
+        Description = 'Hide Taskbar People icon'
+      }
+      @{
+        Key         = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Search'
+        Name        = 'SearchboxTaskbarMode'
+        Value       = 0
+        Description = 'Remove Cortana from taskbar'
+      }
+      @{
+        Key         = 'HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer'
+        Name        = 'EnableAutoTray'
+        Value       = 0
+        Description = 'Show all tray icons'
+      }
+    )
+       
+    $registerKeys += @(
+      @{
+        Key         = 'HKEY_CLASSES_ROOT\*\shell\runas'
+        Name        = '(Default)'
+        Value       = 'Take Ownership'
+        Description = 'Add take ownership to context menus'
+      }
+      @{
+        Key   = 'HKEY_CLASSES_ROOT\*\shell\runas'
+        Name  = 'HasLUAShield'
+        Value = ''
+      }
+      @{
+        Key   = 'HKEY_CLASSES_ROOT\*\shell\runas'
+        Name  = 'NoWorkingDirectory'
+        Value = ''
+      }
+      @{
+        Key   = 'HKEY_CLASSES_ROOT\*\shell\runas\command'
+        Name  = '(Default)'
+        Value = 'cmd.exe /c takeown /f "%1" && icacls "%1" /grant administrators:F /c /l && pause'
+      }
+      @{
+        Key   = 'HKEY_CLASSES_ROOT\*\shell\runas\command'
+        Name  = 'IsolatedCommand'
+        Value = 'cmd.exe /c takeown /f "%1" && icacls "%1" /grant administrators:F /c /l && pause'
+      }
+      @{
+        Key   = 'HKEY_CLASSES_ROOT\Directory\shell\runas'
+        Name  = '(Default)'
+        Value = 'Take Ownership'
+      }
+      @{
+        Key   = 'HKEY_CLASSES_ROOT\Directory\shell\runas'
+        Name  = 'HasLUAShield'
+        Value = ''
+      }
+      @{
+        Key   = 'HKEY_CLASSES_ROOT\Directory\shell\runas\command'
+        Name  = 'NoWorkingDirectory'
+        Value = ''
+      }
+      @{
+        Key   = 'HKEY_CLASSES_ROOT\Directory\shell\runas'
+        Name  = '(Default)'
+        Value = 'cmd.exe /c takeown /f "%1" /r /d y && icacls "%1" /grant administrators:F /t /c /l /q && pause'
+      }
+      @{
+        Key   = 'HKEY_CLASSES_ROOT\Directory\shell\runas'
+        Name  = 'IsolatedCommand'
+        Value = 'cmd.exe /c takeown /f "%1" /r /d y && icacls "%1" /grant administrators:F /t /c /l /q && pause'
+      }
+      @{
+        Key   = 'HKEY_CLASSES_ROOT\dllfile\shell\runas'
+        Name  = '(Default)'
+        Value = 'Take Ownership'
+      }
+      @{
+        Key   = 'HKEY_CLASSES_ROOT\dllfile\shell\runas'
+        Name  = 'HasLUAShield'
+        Value = ''
+      }
+      @{
+        Key   = 'HKEY_CLASSES_ROOT\dllfile\shell\runas'
+        Name  = 'NoWorkingDirectory'
+        Value = ''
+      }
+      @{
+        Key   = 'HKEY_CLASSES_ROOT\dllfile\shell\runas\command'
+        Name  = '(Default)'
+        Value = 'cmd.exe /c takeown /f "%1" && icacls "%1" /grant administrators:F /c /l && pause'
+      }
+      @{
+        Key   = 'HKEY_CLASSES_ROOT\dllfile\shell\runas\command'
+        Name  = 'IsolatedCommand'
+        Value = 'cmd.exe /c takeown /f "%1" && icacls "%1" /grant administrators:F /c /l && pause'
+      }
+      @{
+        Key   = 'HKEY_CLASSES_ROOT\Drive\shell\runas'
+        Name  = '(Default)'
+        Value = 'Take Ownership'
+      }
+      @{
+        Key   = 'HKEY_CLASSES_ROOT\Drive\shell\runas'
+        Name  = 'HasLUAShield'
+        Value = ''
+      }
+      @{
+        Key   = 'HKEY_CLASSES_ROOT\Drive\shell\runas'
+        Name  = 'NoWorkingDirectory'
+        Value = ''
+      }
+      @{
+        Key   = 'HKEY_CLASSES_ROOT\Drive\shell\runas\command'
+        Name  = '(Default)'
+        Value = 'cmd.exe /c takeown /f "%1" /r /d y && icacls "%1" /grant administrators:F /t /c /l /q && pause'
+      }
+      @{
+        Key   = 'HKEY_CLASSES_ROOT\Drive\shell\runas\command'
+        Name  = 'IsolatedCommand'
+        Value = 'cmd.exe /c takeown /f "%1" /r /d y && icacls "%1" /grant administrators:F /t /c /l /q && pause'
+      }
+      @{
+        Key   = 'HKEY_CLASSES_ROOT\exefile\shell\runas'
+        Name  = 'HasLUAShield'
+        Value = ''
+      }
+      @{
+        Key   = 'HKEY_CLASSES_ROOT\exefile\shell\runas\command'
+        Name  = '(Default)'
+        Value = '"%1" %*'
+      }
+      @{
+        Key   = 'HKEY_CLASSES_ROOT\exefile\shell\runas\command'
+        Name  = 'IsolatedCommand'
+        Value = '"%1" %*'
+      }
+    )
+
+    $registerKeys += @(
+      @{
+        Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\FolderDescriptions\{a0c69a99-21c8-4671-8703-7934162fcf1d}\PropertyBag'
+        Name        = 'ThisPCPolicy'
+        Value       = 'Hide'
+        Description = 'Remove Music, Pictures & Videos icon from explorer'
+      }
+      @{
+        Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Explorer\FolderDescriptions\{a0c69a99-21c8-4671-8703-7934162fcf1d}\PropertyBag'
+        Name        = 'ThisPCPolicy'
+        Value       = 'Hide'
+        Description = ''
+      }
+      @{
+        Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\FolderDescriptions\{0ddd015d-b06c-45d5-8c4c-f59713854639}\PropertyBag'
+        Name        = 'ThisPCPolicy'
+        Value       = 'Hide'
+        Description = ''
+      }
+      @{
+        Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Explorer\FolderDescriptions\{0ddd015d-b06c-45d5-8c4c-f59713854639}\PropertyBag'
+        Name        = 'ThisPCPolicy'
+        Value       = 'Hide'
+        Description = ''
+      }
+      @{
+        Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\FolderDescriptions\{35286a68-3c57-41a1-bbb1-0eae73d76c95}\PropertyBag'
+        Name        = 'ThisPCPolicy'
+        Value       = 'Hide'
+        Description = ''
+      }
+      @{
+        Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Explorer\FolderDescriptions\{35286a68-3c57-41a1-bbb1-0eae73d76c95}\PropertyBag'
+        Name        = 'ThisPCPolicy'
+        Value       = 'Hide'
+        Description = ''
+      }
+    )
+
+    ##*##########################################
+    ##*
+    ##* Privacy & Security
+    ##*
+    ##*###########################################
+    Disable-SMBv1
+
+    
+    Disable-SharingWifiNetworks
+
+   
+    Set-WindowsSearchWebResults
+
+    
+    Set-PhotoViewerAssociation
+
+    
+    Add-PhotoViewerOpenWith
+
+    
+    Set-HideTaskView
+
+    
+    Set-Hide3DObjectsFromThisPC
+
+    
+    Set-Hide3DObjectsFromExplorer
+
+    $Edge = (Get-AppxPackage -AllUsers -Name 'Microsoft.MicrosoftEdge') | Select-Object -Property PackageFamilyName -ExpandProperty PackageFamilyName -First 1
 
     $registerKeys += @(
       @{
@@ -381,365 +848,14 @@ Try
         Description = 'Disable app access to radios'
       }
     )
-			
-    # Mouse Settings
-    $registerKeys += @(
-      @{
-        Key         = 'HKEY_CURRENT_USER\Control Panel\Mouse'
-        Name        = 'MouseSpeed'
-        Value       = 0
-        Description = 'Disable Mouse Acceleration'
-      }
-      @{
-        Key         = 'HKEY_CURRENT_USER\Control Panel\Mouse'
-        Name        = 'MouseSensitivity'
-        Value       = 10
-        Description = 'Disable Mouse Acceleration MouseSensitivity'
-      }
-      @{
-        Key         = 'HKEY_CURRENT_USER\Control Panel\Mouse'
-        Name        = 'MouseThreshold1'
-        Value       = 0
-        Description = 'Disable Mouse Acceleration MouseThreshold1'
-      }
-      @{
-        Key         = 'HKEY_CURRENT_USER\Control Panel\Mouse'
-        Name        = 'MouseThreshold2'
-        Value       = 0
-        Description = 'Disable Mouse Acceleration MouseThreshold2'
-      }
-      @{
-        Key         = 'HKEY_CURRENT_USER\Control Panel\Mouse'
-        Name        = 'SmoothMouseYCurve'
-        Value       = ([byte[]](0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x38, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x70, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xA8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xE0, 0x00, 0x00, 0x00, 0x00, 0x00))
-        Description = 'Disable Mouse Acceleration SmoothMouseYCurve'
-      }
-      @{
-        Key         = 'HKEY_CURRENT_USER\Control Panel\Mouse'
-        Name        = 'SmoothMouseXCurve'
-        Value       = ([byte[]](0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xC0, 0xCC, 0x0C, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x99, 0x19, 0x00, 0x00, 0x00, 0x00, 0x00, 0x40, 0x66, 0x26, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x33, 0x33, 0x00, 0x00, 0x00, 0x00, 0x00))
-        Description = 'Disable Mouse Acceleration SmoothMouseXCurve'
-      }
-      @{
-        Key         = 'HKEY_CURRENT_USER\Control Panel\Desktop'
-        Name        = 'UserPreferencesMask'
-        Value       = ([byte[]](0x9e, 0x1e, 0x06, 0x80, 0x12, 0x00, 0x00, 0x00))
-        Description = 'Disable mouse pointer hiding'
-      }
-    )
 
-    # Accessibility Settings
-    $registerKeys += @(
-      @{
-        Key         = 'HKEY_CURRENT_USER\Control Panel\Accessibility\StickyKeys'
-        Name        = 'Flags'
-        Value       = '506'
-        Description = 'Disable sticky keys'
-      }
-      @{
-        Key   = 'HKEY_CURRENT_USER\Control Panel\Accessibility\Keyboard Response'
-        Name  = 'Flags'
-        Value = '122'
-      }
-      @{
-        Key   = 'HKEY_CURRENT_USER\Control Panel\Accessibility\ToggleKeys'
-        Name  = 'Flags'
-        Value = '58'
-      }
-    )
-	
-	
-	
-    # Adjusts visual effects for performance - Disables animations, transparency etc. but leaves font smoothing and full window dragging enabled
-    $registerKeys += @(
-      @{
-        Key         = 'HKEY_CURRENT_USER\Control Panel\Desktop'
-        Name        = 'DragFullWindows'
-        Value       = '1'
-        Description = 'Enable Drag Full Windows'
-      }
-      @{
-        Key         = 'HKEY_CURRENT_USER\Control Panel\Desktop'
-        Name        = 'MenuShowDelay'
-        Value       = '0'
-        Description = 'Disable show menu delay'
-      }
-      @{
-        Key   = 'HKEY_CURRENT_USER\Control Panel\Desktop'
-        Name  = 'UserPreferencesMask'
-        Value = ([byte[]](0x90, 0x12, 0x03, 0x80, 0x10, 0x00, 0x00, 0x00))
-      }
-      @{
-        Key         = 'HKEY_CURRENT_USER\Control Panel\Desktop\WindowMetrics'
-        Name        = 'MinAnimate'
-        Value       = '0'
-        Description = 'Disable minimize and maximize animations'
-      }
-      @{
-        Key   = 'HKEY_CURRENT_USER\Control Panel\Desktop\Keyboard'
-        Name  = 'KeyboardDelay'
-        Value = 0
-      }
-      @{
-        Key   = 'HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
-        Name  = 'ListviewAlphaSelect'
-        Value = 0
-      }
-      @{
-        Key   = 'HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
-        Name  = 'ListviewShadow'
-        Value = 0
-      }
-      @{
-        Key   = 'HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
-        Name  = 'TaskbarAnimations'
-        Value = 0
-      }
-      @{
-        Key   = 'HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects'
-        Name  = 'VisualFXSetting'
-        Value = 3
-      }
-      @{
-        Key   = 'HKEY_CURRENT_USER\Software\Microsoft\Windows\DWM'
-        Name  = 'EnableAeroPeek'
-        Value = 1
-      }
-    )
-	
-    $registerKeys += @(
-      @{
-        Key         = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\OperationStatusManager'
-        Name        = 'EnthusiastMode'
-        Value       = 1
-        Description = 'Show file operations details'
-      }
-    )
-			
-    $registerKeys += @(
-      @{
-        Key         = 'HKEY_CURRENT_USER\Control Panel\Desktop'
-        Name        = 'LogPixels'
-        Value       = 96
-        Description = 'Set Display DPI to 100%'
-      }
-    )
-					
+    					
     $registerKeys += @(
       @{
         Key         = 'HKEY_CURRENT_USER\Control Panel\International\User Profile'
         Name        = 'HttpAcceptLanguageOptOut'
         Value       = 1
         Description = 'Disable websites providing local content by accessing language list'
-      }
-    )
-			
-    # Color and theme settings
-    $registerKeys += @(
-      @{
-        Key         = 'HKEY_CURRENT_USER\Control Panel\Colors'
-        Name        = 'Background'
-        Value       = '0 0 0'
-        Description = 'Set desktop default Background color to black'
-      }
-      @{
-        Key         = 'HKEY_CURRENT_USER\Control Panel\Desktop'
-        Name        = 'WallPaper'
-        Value       = "$env:SystemDrive\Windows\Web\Wallpaper\Windows\img0.jpg"
-        Description = 'Set desktop default wallpaper'
-      }
-    )
-			
-    # Explorer Settings
-    $registerKeys += @(
-      @{
-        Key         = 'HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
-        Name        = 'DisableThumbnailCache'
-        Value       = 1
-        Description = 'Disable creation of Thumbs.db thumbnail cache files'
-      }
-      @{
-        Key         = 'HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
-        Name        = 'HideFileExt'
-        Value       = 0
-        Description = 'Hide file extensions'
-      }
-      @{
-        Key         = 'HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
-        Name        = 'Hidden'
-        Value       = 1
-        Description = 'Show hidden files'
-      }
-      @{
-        Key         = 'HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
-        Name        = 'ShowSuperHidden'
-        Value       = 0
-        Description = 'Show hidden operating system files'
-      }
-				
-      @{
-        Key         = 'HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
-        Name        = 'HideDrivesWithNoMedia'
-        Value       = 0
-        Description = 'Hide drives with no media'
-      }
-      @{
-        Key         = 'HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
-        Name        = 'NavPaneExpandToCurrentFolder'
-        Value       = 1
-        Description = 'Expand to current folder in the left panel in Explorer'
-      }
-      @{
-        Key         = 'HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
-        Name        = 'LaunchTo'
-        Value       = 1
-        Description = 'Change default Explorer view to This PC'
-      }
-      @{
-        Key         = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
-        Name        = 'ShowSyncProviderNotifications'
-        Value       = 0
-        Description = 'Ads in File Explorer'
-      }
-      @{
-        Key         = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
-        Name        = 'SubscribedContent-310093Enabled'
-        Value       = 0
-        Description = 'Show me the Windows welcome experience after updates and occasionally'
-      }
-      @{
-        Key         = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
-        Name        = 'SubscribedContent-338389Enabled'
-        Value       = 0
-        Description = 'Get tips, tricks, suggestions as you use Windows '
-      }
-    
-    )
-    
-    # Game DVR
-    $registerKeys += @(
-      @{
-        Key         = 'HKEY_CURRENT_USER\System\GameConfigStore'
-        Name        = 'GameDVR_Enabled'
-        Value       = 0
-        Description = 'Disable GameDVR'
-      }
-      @{
-        Key         = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\GameDVR'
-        Name        = 'AppCaptureEnabled'
-        Value       = 0
-        Description = 'Disable GameDVR'
-      }
-    )
-    
-    
-    # Disable Start Menu suggestions
-    $registerKeys += @(
-      @{
-        Key         = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'
-        Name        = 'SystemPaneSuggestionsEnabled'
-        Value       = 0
-        Description = 'Disable Start Menu suggestions'
-      }
-      @{
-        Key         = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'
-        Name        = 'SilentInstalledAppsEnabled'
-        Value       = 0
-        Description = 'Disable microsoft shoehorning apps quietly into your profile'
-      }
-      @{
-        Key         = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'
-        Name        = 'SubscribedContent-338393Enabled'
-        Value       = 0
-        Description = 'Disable show suggested content in settings'
-      }
-      @{
-        Key         = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'
-        Name        = 'SubscribedContent-353694Enabled'
-        Value       = 0
-        Description = 'Disable show suggested content in settings'
-      }
-      @{
-        Key         = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'
-        Name        = 'SubscribedContent-338388Enabled'
-        Value       = 0
-        Description = 'Disable show suggestions occasionally'
-      }
-      @{
-        Key         = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'
-        Name        = 'SubscribedContent-353698Enabled'
-        Value       = 0
-        Description = 'Disable show suggestions in timeline'
-      }
-    )
-				
-    # Lockscreen suggestions, rotating pictures and pre-installed apps
-    $registerKeys += @(
-      @{
-        Key         = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'
-        Name        = 'SoftLandingEnabled'
-        Value       = 0
-        Description = 'Disable Lockscreen suggestions'
-      }
-      @{
-        Key         = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'
-        Name        = 'RotatingLockScreenEnabled'
-        Value       = 0
-        Description = 'Disable Lockscreen rotating pictures'
-      }
-      @{
-        Key         = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'
-        Name        = 'RotatingLockScreenOverlayEnabled'
-        Value       = 0
-        Description = 'Disable Lockscreen rotating pictures'
-      }
-      @{
-        Key         = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'
-        Name        = 'PreInstalledAppsEnabled'
-        Value       = 0
-        Description = 'Disable preinstalled apps, Minecraft and Twitter etc'
-      }
-      @{
-        Key         = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'
-        Name        = 'PreInstalledAppsEverEnabled'
-        Value       = 0
-        Description = 'Disable preinstalled apps, Minecraft and Twitter etc'
-      }
-      @{
-        Key   = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'
-        Name  = 'OEMPreInstalledAppsEnabled'
-        Value = 0
-      }
-      @{
-        Key   = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'
-        Name  = 'ContentDeliveryAllowed'
-        Value = 0
-      }
-      @{
-        Key   = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'
-        Name  = 'SubscribedContentEnabled'
-        Value = 0
-      }
-    )
-		
-    # Disable SmartScreen Filter
-    $Edge = (Get-AppxPackage -AllUsers -Name 'Microsoft.MicrosoftEdge') | Select-Object -Property PackageFamilyName -ExpandProperty PackageFamilyName -First 1
-    $registerKeys += @(
-      @{
-        Key         = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\AppHost'
-        Name        = 'EnableWebContentEvaluation'
-        Value       = 0
-        Description = 'Disable SmartScreen Filter'
-      }
-      @{
-        Key   = "HKEY_CURRENT_USER\SOFTWARE\Classes\Local Settings\Software\Microsoft\Windows\CurrentVersion\AppContainer\Storage\$Edge\MicrosoftEdge\PhishingFilter"
-        Name  = 'EnabledV9'
-        Value = 0
-      }
-      @{
-        Key   = "HKEY_CURRENT_USER\SOFTWARE\Classes\Local Settings\Software\Microsoft\Windows\CurrentVersion\AppContainer\Storage\$Edge\MicrosoftEdge\PhishingFilter"
-        Name  = 'PreventOverride'
-        Value = 0
       }
     )
 
@@ -762,33 +878,7 @@ Try
         Value = 'Unspecified'
       }
     )
-			
-    foreach ($key in (Get-ChildItem -Path 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\DeviceAccess\Global')) 
-    {
-      if ($key.PSChildName -EQ 'LooselyCoupled') 
-      {
-        continue
-      }
-	
-      $registerKeys += @(
-        @{
-          Key   = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\DeviceAccess\Global\' + $key.PSChildName
-          Name  = 'Type'
-          Value = 'InterfaceClass'
-        }
-        @{
-          Key   = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\DeviceAccess\Global\' + $key.PSChildName
-          Name  = 'Value'
-          Value = 'Deny'
-        }
-        @{
-          Key   = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\DeviceAccess\Global\' + $key.PSChildName
-          Name  = 'InitialAppValue'
-          Value = 'Unspecified'
-        }
-      )
-    }
-		
+
     # Don't ask for feedback
     $registerKeys += @(
       @{
@@ -997,219 +1087,63 @@ Try
 
     $registerKeys += @(
       @{
-        Key         = 'HKEY_CURRENT_USER\Console'
-        Name        = 'QuickEdit'
-        Value       = 1
-        Description = 'Quick Edit Command Prompt'
-      }
-    )
-
-    $registerKeys += @(
-      @{
-        Key         = 'HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize'
-        Name        = 'AppsUseLightTheme'
-        Value       = 0
-        Description = 'Enable Dark Theme for XAML apps'
-      }
-    )
-
-    $registerKeys += @(
-      @{
-        Key         = 'HKEY_CURRENT_USER\Software\Microsoft\Windows Defender'
-        Name        = 'UIFirstRun'
-        Value       = 0
-        Description = 'Disable Windows Defender First Run UI'
-      }
-    )
-			
-    $registerKeys += @(
-      @{
-        Key         = 'HKEY_CURRENT_USER\SOFTWARE\Classes\Local Settings\Software\Microsoft\Windows\CurrentVersion\AppContainer\Storage\microsoft.microsoftedge_8wekyb3d8bbwe\MicrosoftEdge\Main'
+        Key         = "HKEY_CURRENT_USER\SOFTWARE\Classes\Local Settings\Software\Microsoft\Windows\CurrentVersion\AppContainer\Storage\$Edge\MicrosoftEdge\Main"
         Name        = 'DoNotTrack' 
         Value       = 1
         Description = 'Microsoft Edge settings'
       }
       @{
-        Key   = 'HKEY_CURRENT_USER\SOFTWARE\Classes\Local Settings\Software\Microsoft\Windows\CurrentVersion\AppContainer\Storage\microsoft.microsoftedge_8wekyb3d8bbwe\MicrosoftEdge\User\Default\SearchScopes'
+        Key   = "HKEY_CURRENT_USER\SOFTWARE\Classes\Local Settings\Software\Microsoft\Windows\CurrentVersion\AppContainer\Storage\$Edge\MicrosoftEdge\User\Default\SearchScopes"
         Name  = 'ShowSearchSuggestionsGlobal'
         Value = 0
       }
       @{
-        Key   = 'HKEY_CURRENT_USER\SOFTWARE\Classes\Local Settings\Software\Microsoft\Windows\CurrentVersion\AppContainer\Storage\microsoft.microsoftedge_8wekyb3d8bbwe\MicrosoftEdge\FlipAhead'
+        Key   = "HKEY_CURRENT_USER\SOFTWARE\Classes\Local Settings\Software\Microsoft\Windows\CurrentVersion\AppContainer\Storage\$Edge\MicrosoftEdge\FlipAhead"
         Name  = 'FPEnabled'
         Value = 0
       }
       @{
-        Key   = 'HKEY_CURRENT_USER\SOFTWARE\Classes\Local Settings\Software\Microsoft\Windows\CurrentVersion\AppContainer\Storage\microsoft.microsoftedge_8wekyb3d8bbwe\MicrosoftEdge\PhishingFilter'
+        Key   = "HKEY_CURRENT_USER\SOFTWARE\Classes\Local Settings\Software\Microsoft\Windows\CurrentVersion\AppContainer\Storage\$Edge\MicrosoftEdge\PhishingFilter"
         Name  = 'EnabledV9'
         Value = 0
       }
     )
- 
-    # Taskbar settings
+
     $registerKeys += @(
-      @{
-        Key         = 'HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
-        Name        = 'TaskbarSmallIcons'
-        Value       = 1
-        Description = 'Set taskbar icons to small'
-      }
-      @{
-        Key         = 'HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
-        Name        = 'ShowTaskViewButton'
-        Value       = 0
-        Description = 'Hide Task View button'
-      }
-      @{
-        Key         = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Search'
-        Name        = 'SearchboxTaskbarMode'
-        Value       = 0
-        Description = 'Show Taskbar Search button / box'
-      }
-      @{
-        Key         = 'HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced\People'
-        Name        = 'PeopleBand'
-        Value       = 0
-        Description = 'Hide Taskbar People icon'
-      }
-      @{
-        Key         = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Search'
-        Name        = 'SearchboxTaskbarMode'
-        Value       = 0
-        Description = 'Remove Cortana from taskbar'
-      }
-      @{
-        Key         = 'HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer'
-        Name        = 'EnableAutoTray'
-        Value       = 0
-        Description = 'Show all tray icons'
-      }
-    )
-    
-    # System Tweaks
-    $registerKeys += @(
-      @{
-        Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer'
-        Name        = 'NoPreviousVersionsPage'
-        Value       = 1
-        Description = 'Disable previous versions tab'
-      }
-      @{
-        Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer'
-        Name        = 'DisableEdgeDesktopShortcutCreation'
-        Value       = 1
-        Description = 'Disable Edge desktop shortcut'
-      }
       @{
         Key         = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\lfsvc\Service\Configuration'
         Name        = 'Status'
         Value       = 0
-        Description = 'Disable Location Tracking'
+        Description = 'Disable location tracking'
       }
       @{
         Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Sensor\Overrides\{BFA794E4-F964-4FDB-90F6-51056BFE4B44}'
         Name        = 'SensorPermissionState'
         Value       = 0
-        Description = 'Disable Location Tracking'
+        Description = 'Disable location tracking'
       }
       @{
         Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\DeviceAccess\Global\{BFA794E4-F964-4FDB-90F6-51056BFE4B44}'
         Name        = 'Value'
         Value       = 0
-        Description = 'Disable Location Tracking'
+        Description = 'Disable location tracking'
       }
       @{
         Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\DeviceAccess\Global\{E6AD100E-5F4E-44CD-BE0F-2265D88D14F5}'
         Name        = 'Value'
         Value       = 0
-        Description = 'Disable Location Tracking'
+        Description = 'Disable location tracking'
       }
       @{
         Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\location'
         Name        = 'Value'
         Value       = 'Deny'
-        Description = 'Disable Location Tracking'
-      }
-      @{
-        Key         = 'HKEY_LOCAL_MACHINE\SYSTEM\Maps'
-        Name        = 'AutoUpdateEnabled'
-        Value       = 0
-        Description = 'Disabling automatic Maps updates'
-      }
-      @{
-        Key         = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management\PrefetchParameters'
-        Name        = 'EnablePrefetcher'
-        Value       = 0
-        Description = 'Disable Prefetch'
-      }
-      @{
-        Key         = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management\PrefetchParameters'
-        Name        = 'EnableSuperfetch'
-        Value       = 0
-        Description = 'Disable Superfetch'
-      }
-      @{
-        Key         = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management\PrefetchParameters'
-        Name        = 'EnableBoottrace'
-        Value       = 0
-        Description = 'Disable Boot trace'
+        Description = 'Disable location tracking'
       }
     )
-			
-    # Stop Edge Browser from Hijacking PDF & HTML OpenWith (Windows 10 1607+)
-			
-    $registerKeys += @(
-      @{
-        Key         = 'HKEY_LOCAL_MACHINE\Classes\AppXd4nrz8ff68srnhf9t5a8sbjyar1cr723'
-        Name        = 'NoOpenWith'
-        Value       = $null
-        Description = ''
-      }
-      @{
-        Key         = 'HKEY_LOCAL_MACHINE\Classes\AppXd4nrz8ff68srnhf9t5a8sbjyar1cr723'
-        Name        = 'NoStaticDefaultVerb'
-        Value       = $null
-        Description = ''
-      }
-      @{
-        Key         = 'HKEY_LOCAL_MACHINE\Classes\AppX4hxtad77fbk3jkkeerkrm0ze94wjf3s9'
-        Name        = 'NoOpenWith'
-        Value       = $null
-        Description = ''
-      }
-      @{
-        Key         = 'HKEY_LOCAL_MACHINE\Classes\AppX4hxtad77fbk3jkkeerkrm0ze94wjf3s9'
-        Name        = 'NoStaticDefaultVerb'
-        Value       = $null
-        Description = ''
-      }
-      @{
-        Key         = 'HKEY_LOCAL_MACHINE\Classes\AppX4hxtad77fbk3jkkeerkrm0ze94wjf3s9'
-        Name        = 'NoOpenWith'
-        Value       = $null
-        Description = ''
-      }
-      @{
-        Key         = 'HKEY_LOCAL_MACHINE\Classes\AppX4hxtad77fbk3jkkeerkrm0ze94wjf3s9'
-        Name        = 'NoStaticDefaultVerb'
-        Value       = $null
-        Description = ''
-      }
-      @{
-        Key         = 'HKEY_LOCAL_MACHINE\Classes\AppXd4nrz8ff68srnhf9t5a8sbjyar1cr723'
-        Name        = 'NoOpenWith'
-        Value       = $null
-        Description = ''
-      }
-      @{
-        Key         = 'HKEY_LOCAL_MACHINE\Classes\AppXd4nrz8ff68srnhf9t5a8sbjyar1cr723'
-        Name        = 'NoStaticDefaultVerb'
-        Value       = $null
-        Description = ''
-      }
-    )
-			
-    # Smart Screen Settings
+
+      			
+    # Disable SmartScreen Filter
     $registerKeys += @(
       @{
         Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer'
@@ -1217,204 +1151,46 @@ Try
         Value       = 'Off'
         Description = 'Disabling SmartScreen Filter...'
       }
-    )
-
-				
-    # GameDVR
-    $registerKeys += @(
       @{
-        Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\PolicyManager\default\ApplicationManagement\AllowGameDVR'
-        Name        = 'value'
+        Key         = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\AppHost'
+        Name        = 'EnableWebContentEvaluation'
         Value       = 0
-        Description = 'Disable Game DVR and Game Bar'
+        Description = 'Disabling SmartScreen Filter...'
       }
       @{
-        Key   = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\GameDVR'
-        Name  = 'AllowGameDVR'
+        Key   = "HKEY_CURRENT_USER\SOFTWARE\Classes\Local Settings\Software\Microsoft\Windows\CurrentVersion\AppContainer\Storage\$Edge\MicrosoftEdge\PhishingFilter"
+        Name  = 'EnabledV9'
         Value = 0
       }
       @{
-        Key         = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\xbgm'
-        Name        = 'Start'
-        Value       = 4
-        Description = 'Disable Game Monitoring Service'
+        Key   = "HKEY_CURRENT_USER\SOFTWARE\Classes\Local Settings\Software\Microsoft\Windows\CurrentVersion\AppContainer\Storage\$Edge\MicrosoftEdge\PhishingFilter"
+        Name  = 'PreventOverride'
+        Value = 0
+      }
+      @{
+        Key         = 'HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\Windows\System'
+        Name        = 'EnableSmartScreen'
+        Value       = 0
+        Description = 'Disabling SmartScreen in GPO'
       }
     )
 
+    
     $registerKeys += @(
       @{
         Key         = 'HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\Windows\CurrentVersion\PushNotifications'
         Name        = 'NoTileApplicationNotification'
         Value       = 0
-        Description = 'Disabling tile push notification'
+        Description = 'Disabling live tile push notification'
       }
     )
-			
-    # Windows Photo viewer file associations
-    $registerKeys += @(	
-      @{
-        Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows Photo Viewer\Capabilities\FileAssociations'
-        Name        = '.tif'
-        Value       = 'PhotoViewer.FileAssoc.Tiff'
-        Description = 'Photoviewer file associations'
-      }
-      @{
-        Key   = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows Photo Viewer\Capabilities\FileAssociations'
-        Name  = '.tiff'
-        Value = 'PhotoViewer.FileAssoc.Tiff'
-      }
-      @{
-        Key   = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows Photo Viewer\Capabilities\FileAssociations'
-        Name  = '.jpg'
-        Value = 'PhotoViewer.FileAssoc.Tiff'
-      }
-      @{
-        Key   = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows Photo Viewer\Capabilities\FileAssociations'
-        Name  = '.jpeg'
-        Value = 'PhotoViewer.FileAssoc.Tiff'
-      }
-      @{
-        Key   = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows Photo Viewer\Capabilities\FileAssociations'
-        Name  = '.png'
-        Value = 'PhotoViewer.FileAssoc.Tiff'
-      }
-      @{
-        Key   = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows Photo Viewer\Capabilities\FileAssociations'
-        Name  = '.gif'
-        Value = 'PhotoViewer.FileAssoc.Tiff'
-      }
-      @{
-        Key   = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows Photo Viewer\Capabilities\FileAssociations'
-        Name  = '.bmp'
-        Value = 'PhotoViewer.FileAssoc.Tiff'
-      }
-    )
-   
-    $registerKeys += @(
-      @{
-        Key         = 'HKEY_CLASSES_ROOT\*\shell\runas'
-        Name        = '(Default)'
-        Value       = 'Take Ownership'
-        Description = 'Add take ownership to context menus'
-      }
-      @{
-        Key   = 'HKEY_CLASSES_ROOT\*\shell\runas'
-        Name  = 'HasLUAShield'
-        Value = ''
-      }
-      @{
-        Key   = 'HKEY_CLASSES_ROOT\*\shell\runas'
-        Name  = 'NoWorkingDirectory'
-        Value = ''
-      }
-      @{
-        Key   = 'HKEY_CLASSES_ROOT\*\shell\runas\command'
-        Name  = '(Default)'
-        Value = 'cmd.exe /c takeown /f "%1" && icacls "%1" /grant administrators:F /c /l && pause'
-      }
-      @{
-        Key   = 'HKEY_CLASSES_ROOT\*\shell\runas\command'
-        Name  = 'IsolatedCommand'
-        Value = 'cmd.exe /c takeown /f "%1" && icacls "%1" /grant administrators:F /c /l && pause'
-      }
-      @{
-        Key   = 'HKEY_CLASSES_ROOT\Directory\shell\runas'
-        Name  = '(Default)'
-        Value = 'Take Ownership'
-      }
-      @{
-        Key   = 'HKEY_CLASSES_ROOT\Directory\shell\runas'
-        Name  = 'HasLUAShield'
-        Value = ''
-      }
-      @{
-        Key   = 'HKEY_CLASSES_ROOT\Directory\shell\runas\command'
-        Name  = 'NoWorkingDirectory'
-        Value = ''
-      }
-      @{
-        Key   = 'HKEY_CLASSES_ROOT\Directory\shell\runas'
-        Name  = '(Default)'
-        Value = 'cmd.exe /c takeown /f "%1" /r /d y && icacls "%1" /grant administrators:F /t /c /l /q && pause'
-      }
-      @{
-        Key   = 'HKEY_CLASSES_ROOT\Directory\shell\runas'
-        Name  = 'IsolatedCommand'
-        Value = 'cmd.exe /c takeown /f "%1" /r /d y && icacls "%1" /grant administrators:F /t /c /l /q && pause'
-      }
-      @{
-        Key   = 'HKEY_CLASSES_ROOT\dllfile\shell\runas'
-        Name  = '(Default)'
-        Value = 'Take Ownership'
-      }
-      @{
-        Key   = 'HKEY_CLASSES_ROOT\dllfile\shell\runas'
-        Name  = 'HasLUAShield'
-        Value = ''
-      }
-      @{
-        Key   = 'HKEY_CLASSES_ROOT\dllfile\shell\runas'
-        Name  = 'NoWorkingDirectory'
-        Value = ''
-      }
-      @{
-        Key   = 'HKEY_CLASSES_ROOT\dllfile\shell\runas\command'
-        Name  = '(Default)'
-        Value = 'cmd.exe /c takeown /f "%1" && icacls "%1" /grant administrators:F /c /l && pause'
-      }
-      @{
-        Key   = 'HKEY_CLASSES_ROOT\dllfile\shell\runas\command'
-        Name  = 'IsolatedCommand'
-        Value = 'cmd.exe /c takeown /f "%1" && icacls "%1" /grant administrators:F /c /l && pause'
-      }
-      @{
-        Key   = 'HKEY_CLASSES_ROOT\Drive\shell\runas'
-        Name  = '(Default)'
-        Value = 'Take Ownership'
-      }
-      @{
-        Key   = 'HKEY_CLASSES_ROOT\Drive\shell\runas'
-        Name  = 'HasLUAShield'
-        Value = ''
-      }
-      @{
-        Key   = 'HKEY_CLASSES_ROOT\Drive\shell\runas'
-        Name  = 'NoWorkingDirectory'
-        Value = ''
-      }
-      @{
-        Key   = 'HKEY_CLASSES_ROOT\Drive\shell\runas\command'
-        Name  = '(Default)'
-        Value = 'cmd.exe /c takeown /f "%1" /r /d y && icacls "%1" /grant administrators:F /t /c /l /q && pause'
-      }
-      @{
-        Key   = 'HKEY_CLASSES_ROOT\Drive\shell\runas\command'
-        Name  = 'IsolatedCommand'
-        Value = 'cmd.exe /c takeown /f "%1" /r /d y && icacls "%1" /grant administrators:F /t /c /l /q && pause'
-      }
-      @{
-        Key   = 'HKEY_CLASSES_ROOT\exefile\shell\runas'
-        Name  = 'HasLUAShield'
-        Value = ''
-      }
-      @{
-        Key   = 'HKEY_CLASSES_ROOT\exefile\shell\runas\command'
-        Name  = '(Default)'
-        Value = '"%1" %*'
-      }
-      @{
-        Key   = 'HKEY_CLASSES_ROOT\exefile\shell\runas\command'
-        Name  = 'IsolatedCommand'
-        Value = '"%1" %*'
-      }
-    )
-  
+
     $registerKeys += @(
       @{
         Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\DataCollection'
         Name        = 'AllowTelemetry'
         Value       = 0
-        Description = 'Disabling telemetry'
+        Description = 'Disable telemetry'
       }
       @{
         Key   = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\DataCollection'
@@ -1427,150 +1203,7 @@ Try
         Value = 0
       }
     )
-			
-    # Disable Wi-Fi Sense
-    $registerKeys += @(
-      @{
-        Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\PolicyManager\default\WiFi\AllowWiFiHotSpotReporting'
-        Name        = 'Value'
-        Value       = 0
-        Description = 'Disable Auto Connect To WiFiSense Hotspots'
-      }
-      @{
-        Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\PolicyManager\default\WiFi\AllowAutoConnectToWiFiSenseHotspots'
-        Name        = 'Value'
-        Value       = 0
-        Description = 'Disable Auto Connect To WiFiSense Hotspots'
-      }
-    )
-
-    $registerKeys += @(
-      @{
-        Key         = 'HKEY_LOCAL_MACHINE\Software\Microsoft\Windows NT\CurrentVersion\MTCUVC'
-        Name        = 'EnableMtcUvc'
-        Value       = 0
-        Description = 'Enable old volume slider'
-      }
-    )
-  
-
-    $registerKeys += @(
-      @{
-        Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer'
-        Name        = 'NoDriveTypeAutoRun'
-        Value       = 255
-        Description = 'Disable AutoRun'
-      }
-      @{
-        Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\AutoplayHandlers'
-        Name        = 'DisableAutoplay'
-        Value       = 0
-        Description = 'Disable Autoplay'
-      }
-      @{
-        Key         = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Remote Assistance'
-        Name        = 'fAllowToGetHelp'
-        Value       = 0
-        Description = 'Disable Remote Assistance'
-      }
-      @{
-        Key         = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Terminal Server'
-        Name        = 'fDenyTSConnections'
-        Value       = 0
-        Description = 'Enable Remote Desktop'
-      }
-      @{
-        Key         = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp'
-        Name        = 'UserAuthentication'
-        Value       = 0
-        Description = 'Disabling network level authentication requirement for remote desktop'
-      }
-    )
-
-    $registerKeys += @(
-      @{
-        Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System'
-        Name        = 'EnableLUA'
-        Value       = 1
-        Description = 'Set Never Notify UAC settings'
-      }
-      @{
-        Key   = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System'
-        Name  = 'ConsentPromptBehaviorAdmin'
-        Value = 0
-      }
-      @{
-        Key   = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System'
-        Name  = 'ConsentPromptBehaviorUser'
-        Value = 0
-      }
-      @{
-        Key   = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System'
-        Name  = 'PromptOnSecureDesktop'
-        Value = 0
-      }
-      @{
-        Key   = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System'
-        Name  = 'FilterAdministratorToken'
-        Value = 1
-      }
-      @{
-        Key   = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\UIPI'
-        Name  = '(Default)'
-        Value = '0x00000001(1)'
-      }
-    )
-  
-    $registerKeys += @(
-      @{
-        Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\Reliability'
-        Name        = 'ShutdownReasonOn'
-        Value       = 0
-        Description = 'Disable Shutdown Tracker'
-      }
-    )
-  
-    $registerKeys += @(
-      @{
-        Key         = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Power'
-        Name        = 'HiberFileSizePercent'
-        Value       = 0
-        Description = 'Disable Hibernation'
-      }
-      @{
-        Key   = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Power'
-        Name  = 'HibernateEnabled'
-        Value = 0
-      }
-    )
-
-    $registerKeys += @(
-      @{
-        Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System'
-        Name        = 'VerboseStatus'
-        Value       = 1
-        Description = 'Enable verbose status messages when you sign in/out of Windows'
-      }
-    )
-  
-    If (Test-IsDesktop)
-    {
-      $registerKeys += @(
-        @{
-          Key         = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Power\PowerSettings\54533251-82be-4824-96c1-47b60b740d00\0cc5b647-c1df-4637-891a-dec35c318583'
-          Name        = 'Attributes'
-          Value       = 0
-          Description = 'Processor performance core parking min cores'
-        }
-        @{
-          Key         = 'HKEY_LOCAL_MACHINE\System\CurrentControlSet\Control\Power\PowerSettings\54533251-82be-4824-96c1-47b60b740d00\0cc5b647-c1df-4637-891a-dec35c318583'
-          Name        = 'ValueMax'
-          Value       = 0
-          Description = 'Disable CPU core parking desktops only'
-        }
-      )
-    }
-				
+        
     $registerKeys += @(
       @{
         Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\WindowsStore'
@@ -1585,7 +1218,19 @@ Try
         Description = 'Disabling advertising info collection for this machine'
       }
       @{
+        Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\AdvertisingInfo'
+        Name        = 'DisabledByGroupPolicy'
+        Value       = 1
+        Description = 'Disabling advertising info collection for this machine'
+      }
+      @{
         Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\Windows Error Reporting'
+        Name        = 'Disabled'
+        Value       = 1
+        Description = 'Disable windows error reporting'
+      }
+      @{
+        Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Windows Error Reporting'
         Name        = 'Disabled'
         Value       = 1
         Description = 'Disable windows error reporting'
@@ -1615,72 +1260,8 @@ Try
         Description = 'Enable diagnostic data viewer'
       }
     )
-					
-    $registerKeys += @(
-      @{
-        Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\DeliveryOptimization'
-        Name        = 'DODownloadMode'
-        Value       = 0
-        Description = 'Disable seeding of updates to other computers on LAN via Group Policies'
-      }
-    )
-			
-    # Disable offering of drivers through Windows Update
-    $registerKeys += @(
-      @{
-        Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\DriverSearching'
-        Name        = 'SearchOrderConfig'
-        Value       = 0
-        Description = 'Disabling automatic driver update'
-      }
-      @{
-        Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate'
-        Name        = 'ExcludeWUDriversInQualityUpdate'
-        Value       = 1
-        Description = 'Disabling automatic driver update'
-      }
-    )
-				
-    Invoke-TakeownRegistry  -key 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows Defender\Spynet'
-    $registerKeys += @(
-      @{
-        Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows Defender\Spynet'
-        Name        = 'SpyNetReporting'
-        Value       = 0
-        Description = 'Windows Defender Spynet'
-      }
-      @{
-        Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows Defender\Spynet'
-        Name        = 'SubmitSamplesConsent'
-        Value       = 0
-        Description = 'Windows Defender Sample Submission'
-      }
-      @{
-        Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\DeliveryOptimization'
-        Name        = 'SystemSettingsDownloadMode'
-        Value       = 3
-        Description = 'Restrict Windows Update Peer to Peer only to local network'
-      }
-      @{
-        Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\DeliveryOptimization\Config'
-        Name        = 'DownloadMode'
-        Value       = 1
-        Description = 'Restrict Windows Update Peer to Peer only to local network'
-      }
-      @{
-        Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\DeliveryOptimization\Config'
-        Name        = 'DODownloadMode'
-        Value       = 1
-        Description = 'Restrict Windows Update Peer to Peer only to local network'
-      }
-      @{
-        Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\DeliveryOptimization\Settings'
-        Name        = 'DownloadMode'
-        Value       = 1
-        Description = 'Restrict Windows Update Peer to Peer only to local network'
-      }
-    )
-				
+    
+    # Disable Wi-Fi Sense	
     $registerKeys += @(
       @{
         Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\WcmSvc\wifinetworkmanager\features'
@@ -1693,6 +1274,21 @@ Try
         Name        = 'WiFiSenseOpen'
         Value       = 0
         Description = 'Disable WifiSense Open-ness'
+      }
+    )
+
+    $registerKeys += @(
+      @{
+        Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\PolicyManager\default\WiFi\AllowWiFiHotSpotReporting'
+        Name        = 'Value'
+        Value       = 0
+        Description = 'Disable Auto Connect To WiFiSense Hotspots'
+      }
+      @{
+        Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\PolicyManager\default\WiFi\AllowAutoConnectToWiFiSenseHotspots'
+        Name        = 'Value'
+        Value       = 0
+        Description = 'Disable Auto Connect To WiFiSense Hotspots'
       }
     )
 				
@@ -1816,10 +1412,23 @@ Try
       }
       @{
         Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\CloudContent'
+        Name        = 'DisableTailoredExperiencesWithDiagnosticData'
+        Value       = 1
+        Description = 'Disable Tailored Experiences With Diagnostic Data'
+      }
+      @{
+        Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\CloudContent'
         Name        = 'DisableSoftLanding'
         Value       = 1
         Description = 'Cloud Content do not show windows tips'
       }
+      @{
+        Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\CloudContent'
+        Name        = 'DisableWindowsSpotlightFeatures'
+        Value       = 1
+        Description = 'Disable Windows Spotlight Features'
+      }
+
       @{
         Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\CloudContent'
         Name        = 'DisableWindowsConsumerFeatures'
@@ -1876,6 +1485,12 @@ Try
         Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Windows Search'
         Name        = 'AllowCortana'
         Value       = 0
+        Description = 'Disable Cortana'
+      }
+      @{
+        Key         = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\SharedAccess\Parameters\FirewallPolicy\FirewallRules'
+        Name        = '{2765E0F4-2918-4A46-B9C9-43CDD8FCBA2B}'
+        Value       = 'BlockCortana|Action=Block|Active=TRUE|Dir=Out|App=C:\windows\systemapps\microsoft.windows.cortana_cw5n1h2txyewy\searchui.exe|Name=Search  and Cortana  application|AppPkgId=S-1-15-2-1861897761-1695161497-2927542615-642690995-327840285-2659745135-2630312742|'
         Description = 'Disable Cortana'
       }
       @{
@@ -1987,56 +1602,331 @@ Try
       }
     )
 
+
+    ###########################################
+    #
+    # Performance and Optimization
+    #
+    ############################################
+
+    
+    Set-WindowsPowerPlan -HighPerformance
+
+   
+    Disable-GameDVR
+    
+    
+    Disable-ApplicationsRunningInBackground
+
+
+    Disable-8dot3FileNames
+
+
+    Set-DEPOptOut
+
+   
+    Disable-WindowsDefender 
+
+    
+    Uninstall-OneDrive
+
+    
+    Remove-BuiltInPrinters
+
+   
+    Set-HomeLocation
+
+    
+    Disable-WindowsService -Service @(
+      'diagnosticshub.standardcollector.service' # Microsoft Diagnostics Hub Standard Collector Service
+      'DiagTrack'                                # Diagnostics Tracking Service
+      'dmwappushservice'                         # WAP Push Message Routing Service
+      'HomeGroupListener'                        # HomeGroup Listener
+      'HomeGroupProvider'                        # HomeGroup Provider
+      'lfsvc'                                    # Geolocation Service
+      'MapsBroker'                               # Downloaded Maps Manager
+      'NetTcpPortSharing'                        # Net.Tcp Port Sharing Service
+      'SharedAccess'                             # Internet Connection Sharing (ICS)
+      'WbioSrvc'                                 # Windows Biometric Service
+      'WMPNetworkSvc'                            # Windows Media Player Network Sharing Service
+      'XblAuthManager'                           # Xbox Live Auth Manager
+      'XblGameSave'                              # Xbox Live Game Save Service
+      'XboxNetApiSvc'                            # Xbox Live Networking Service
+      'TrkWks'                                   # Distributed Link Tracking Client. Description: Maintains links between NTFS files within a computer or across computers in a network.
+      'AdobeFlashPlayerUpdateSvc'                # Adobe flash player updater
+      'RemoteAccess'                             # Routing and Remote Access
+      'RemoteRegistry'                           # Remote Registry
+      'WlanSvc'                                  # WLAN AutoConfig
+      'wscsvc'                                   # Windows Security Center Service
+      'WSearch'                                  # Windows Search
+      'WerSvc'
+      'OneSyncSvc'
+      'MessagingService'
+      "wercplsupport"
+      "PcaSvc"
+      "wlidsvc"
+      "wisvc"
+      "RetailDemo"
+      "diagsvc"
+      "shpamsvc" 
+      "TroubleshootingSvc"
+    )
+
+    Disable-BeepService
+      
+    
+    Remove-BuiltinWindowsApplications -apps @(
+      'Microsoft.Windows.CloudExperienceHost'
+      'Microsoft.Windows.ShellExperienceHost'
+      'Microsoft.AAD.BrokerPlugin'
+      'Microsoft.Windows.Cortana'
+      'Microsoft.Appconnector'
+      'Microsoft.Messaging'
+      'Microsoft.Windows.Apprep.ChxApp'
+      'Microsoft.Windows.AssignedAccessLockApp'
+      'Microsoft.Windows.ContentDeliveryManager'
+      'Microsoft.Windows.ParentalControls'
+      'Microsoft.Windows.SecondaryTileExperience'
+      'Microsoft.Windows.SecureAssessmentBrowser'
+      'Microsoft.AccountsControl'
+      'Microsoft.LockApp'
+      'Microsoft.MicrosoftEdge'
+      'Microsoft.PPIProjection'
+      'Windows.PrintDialog'
+      'Microsoft.StorePurchaseApp'
+      'Microsoft.NET.Native.Runtime.1.3'
+      'Microsoft.NET.Native.Runtime.1.1'
+      'Microsoft.NET.Native.Framework.1.3' 
+      'Microsoft.NET.Native.Runtime.1.4' 
+      'Microsoft.VCLibs.140.00' 
+      'Microsoft.VCLibs.120.00' 
+      'Microsoft.BingTranslator' 
+      'Microsoft.DesktopAppInstaller'
+      'Microsoft.MicrosoftStickyNotes'
+      'Microsoft.BingWeather'
+      'Microsoft.WindowsMaps'
+      'Microsoft.WindowsSoundRecorder'
+      'Microsoft.Windows.Photos'
+      'Microsoft.WindowsStore'
+      'Microsoft.WindowsAlarms'
+      'microsoft.WindowsCommunicationsApps'
+      'Microsoft.WindowsCalculator'
+    )
+
+   
+    Disable-ScheduledTasks -TaskName @(
+      'Microsoft\Windows\AppID\SmartScreenSpecific'
+      'Microsoft\Windows\NetTrace\GatherNetworkInfo'
+      'Microsoft\Windows\Application Experience\AitAgent'
+      'Microsoft\Windows\Application Experience\Microsoft Compatibility Appraiser' 
+      'Microsoft\Windows\Application Experience\ProgramDataUpdater' 
+      'Microsoft\Windows\Application Experience\StartupAppTask' 
+      'Microsoft\Windows\Autochk\Proxy'
+      'Microsoft\Windows\CloudExperienceHost\CreateObjectTask' 
+      'Microsoft\Windows\Customer Experience Improvement Program\BthSQM' 
+      'Microsoft\Windows\Customer Experience Improvement Program\Consolidator' 
+      'Microsoft\Windows\Customer Experience Improvement Program\KernelCeipTask' 
+      'Microsoft\Windows\Customer Experience Improvement Program\Uploader' 
+      'Microsoft\Windows\Customer Experience Improvement Program\UsbCeip' 
+      'Microsoft\Windows\DiskDiagnostic\Microsoft-Windows-DiskDiagnosticDataCollector' 
+      'Microsoft\Windows\DiskFootprint\Diagnostics' 
+      'Microsoft\Windows\FileHistory\File History (maintenance mode)' 
+      'Microsoft\Windows\Maintenance\WinSAT' 
+      'Microsoft\Windows\PI\Sqm-Tasks' 
+      'Microsoft\Windows\Shell\FamilySafetyRefresh' 
+      'Microsoft\Windows\Shell\FamilySafetyUpload' 
+      'Microsoft\Windows\Windows Error Reporting\QueueReporting' 
+      'Microsoft\Windows\WindowsUpdate\Automatic App Update' 
+      'Microsoft\Windows\License Manager\TempSignedLicenseExchange' 
+      'Microsoft\Windows\Clip\License Validation' 
+      'Microsoft\Windows\ApplicationData\DsSvcCleanup' 
+      'Microsoft\Windows\Power Efficiency Diagnostics\AnalyzeSystem' 
+      'Microsoft\Windows\PushToInstall\LoginCheck' 
+      'Microsoft\Windows\PushToInstall\Registration' 
+      'Microsoft\Windows\Shell\FamilySafetyMonitor' 
+      'Microsoft\Windows\Shell\FamilySafetyMonitorToastTask' 
+      'Microsoft\Windows\Shell\FamilySafetyRefreshTask' 
+      'Microsoft\Windows\Subscription\EnableLicenseAcquisition' 
+      'Microsoft\Windows\Subscription\LicenseAcquisition' 
+      'Microsoft\Windows\Diagnosis\RecommendedTroubleshootingScanner' 
+      'Microsoft\Windows\Diagnosis\Scheduled' 
+      'Microsoft\Office\Office 15 Subscription Heartbeat'
+      'Microsoft\Office\OfficeTelemetryAgentFallBack'
+      'Microsoft\Office\OfficeTelemetryAgentLogOn'
+      'Microsoft\Windows\Feedback\Siuf\DmClient'
+      'Microsoft\Windows\Mobile Broadband Accounts\MNO Metadata Parser'
+      '\NvTmMon_{B2FE1952-0186-46C3-BAEC-A80AA35AC5B8}' # Nvidia Telemetry
+      '\NvTmRep_{B2FE1952-0186-46C3-BAEC-A80AA35AC5B8' # Nvidia Telemetry
+      '\NvTmRepOnLogon_{B2FE1952-0186-46C3-BAEC-A80AA35AC5B8}'# Nvidia Telemetry
+      'NvDriverUpdateCheckDaily_{B2FE1952-0186-46C3-BAEC-A80AA35AC5B8}' # NVIDIA display driver daily update checks
+      'Adobe Flash Player Updater' # Adobe Flash Player update task
+      'Adobe Acrobat Update Task' # Adobe Reader update task
+      'NVIDIA GeForce Experience SelfUpdate_{B2FE1952-0186-46C3-BAEC-A80AA35AC5B8}' # GeForce Experience Self Update
+      'Microsoft\XblGameSaveTask\XblGameSaveTask' 
+      'Microsoft\Windows\WCM\WiFiTask'
+      'Microsoft\Windows\Work Folders\Work Folders Logon Synchronization'
+      'Microsoft\Windows\Work Folders\Work Folders Maintenance Work'
+      'Microsoft\Windows\Active Directory Rights Management Services Client\AD RMS Rights Policy Template Management (Manual)'
+      'Microsoft\Windows\BitLocker\BitLocker Encrypt All Drives'
+      'Microsoft\Windows\BitLocker\BitLocker MDM policy Refresh'
+      '\Microsoft\Windows\Diagnosis\RecommendedTroubleshootingScanner'
+      '\Microsoft\Windows\Bluetooth\UninstallDeviceTask'
+      '\Microsoft\Windows\Power Efficiency Diagnostics\AnalyzeSystem'
+      '\Microsoft\Windows\Shell\FamilySafetyMonitor'
+      '\Microsoft\Windows\Shell\FamilySafetyRefreshTask'
+      '\Microsoft\Windows\TPM\Tpm-HASCertRetr'
+      '\Microsoft\Windows\TPM\Tpm-Maintenance'
+      '\Microsoft\Windows\SoftwareProtectionPlatform\SvcRestartTask'
+      '\Microsoft\Windows\SoftwareProtectionPlatform\SvcRestartTaskLogon'
+      '\Microsoft\Windows\SoftwareProtectionPlatform\SvcRestartTaskNetwork'
+      '\Microsoft\Windows\NlaSvc\WiFiTask'
+      '\Microsoft\Windows\Maps\MapsToastTask'
+      '\Microsoft\Windows\HelloFace\FODCleanupTask'
+    )
+
+    Takeown-Folder -Path "$env:SystemDrive:\Windows\System32\Tasks\Microsoft\Windows\SettingSync\"
+    Remove-Item -Path "$env:SystemDrive:\Windows\System32\Tasks\Microsoft\Windows\SettingSync\" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
+	
+    # Adjusts visual effects for performance - Disables animations, transparency etc. but leaves font smoothing and full window dragging enabled
     $registerKeys += @(
       @{
-        Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\FolderDescriptions\{a0c69a99-21c8-4671-8703-7934162fcf1d}\PropertyBag'
-        Name        = 'ThisPCPolicy'
-        Value       = 'Hide'
-        Description = 'Remove Music, Pictures & Videos icon from explorer'
+        Key         = 'HKEY_CURRENT_USER\Control Panel\Desktop'
+        Name        = 'DragFullWindows'
+        Value       = '1'
+        Description = 'Enable Drag Full Windows'
       }
       @{
-        Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Explorer\FolderDescriptions\{a0c69a99-21c8-4671-8703-7934162fcf1d}\PropertyBag'
-        Name        = 'ThisPCPolicy'
-        Value       = 'Hide'
-        Description = ''
+        Key         = 'HKEY_CURRENT_USER\Control Panel\Desktop'
+        Name        = 'MenuShowDelay'
+        Value       = '0'
+        Description = 'Disable show menu delay'
       }
       @{
-        Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\FolderDescriptions\{0ddd015d-b06c-45d5-8c4c-f59713854639}\PropertyBag'
-        Name        = 'ThisPCPolicy'
-        Value       = 'Hide'
-        Description = ''
+        Key   = 'HKEY_CURRENT_USER\Control Panel\Desktop'
+        Name  = 'UserPreferencesMask'
+        Value = ([byte[]](0x90, 0x12, 0x03, 0x80, 0x10, 0x00, 0x00, 0x00))
       }
       @{
-        Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Explorer\FolderDescriptions\{0ddd015d-b06c-45d5-8c4c-f59713854639}\PropertyBag'
-        Name        = 'ThisPCPolicy'
-        Value       = 'Hide'
-        Description = ''
+        Key         = 'HKEY_CURRENT_USER\Control Panel\Desktop\WindowMetrics'
+        Name        = 'MinAnimate'
+        Value       = '0'
+        Description = 'Disable minimize and maximize animations'
       }
       @{
-        Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\FolderDescriptions\{35286a68-3c57-41a1-bbb1-0eae73d76c95}\PropertyBag'
-        Name        = 'ThisPCPolicy'
-        Value       = 'Hide'
-        Description = ''
+        Key   = 'HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
+        Name  = 'ListviewAlphaSelect'
+        Value = 0
       }
       @{
-        Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Explorer\FolderDescriptions\{35286a68-3c57-41a1-bbb1-0eae73d76c95}\PropertyBag'
-        Name        = 'ThisPCPolicy'
-        Value       = 'Hide'
-        Description = ''
+        Key   = 'HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
+        Name  = 'ListviewShadow'
+        Value = 0
+      }
+      @{
+        Key   = 'HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
+        Name  = 'TaskbarAnimations'
+        Value = 0
+      }
+      @{
+        Key   = 'HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects'
+        Name  = 'VisualFXSetting'
+        Value = 3
+      }
+      @{
+        Key   = 'HKEY_CURRENT_USER\Software\Microsoft\Windows\DWM'
+        Name  = 'EnableAeroPeek'
+        Value = 1
       }
     )
-			
+
     $registerKeys += @(
       @{
-        Key         = 'HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\Windows NT\Terminal Services'
-        Name        = 'fDenyTSConnection'
-        Value       = 0
-        Description = 'Enable remote desktop and tweak settings'
+        Key         = 'HKEY_CURRENT_USER\Control Panel\Desktop'
+        Name        = 'LogPixels'
+        Value       = 96
+        Description = 'Set Display DPI to 100%'
+      }
+    )
+   
+    # System Tweaks
+    $registerKeys += @(
+      @{
+        Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer'
+        Name        = 'NoPreviousVersionsPage'
+        Value       = 1
+        Description = 'Disable previous versions tab'
       }
       @{
-        Key   = 'HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\Windows NT\Terminal Services'
-        Name  = 'fNoRemoteDesktopWallpaper'
-        Value = 1
+        Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer'
+        Name        = 'DisableEdgeDesktopShortcutCreation'
+        Value       = 1
+        Description = 'Disable Edge desktop shortcut'
+      }
+      @{
+        Key         = 'HKEY_LOCAL_MACHINE\SYSTEM\Maps'
+        Name        = 'AutoUpdateEnabled'
+        Value       = 0
+        Description = 'Disabling automatic map updates'
+      }
+      @{
+        Key         = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management\PrefetchParameters'
+        Name        = 'EnablePrefetcher'
+        Value       = 0
+        Description = 'Disable Prefetch'
+      }
+      @{
+        Key         = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management\PrefetchParameters'
+        Name        = 'EnableSuperfetch'
+        Value       = 0
+        Description = 'Disable Superfetch'
+      }
+      @{
+        Key         = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management\PrefetchParameters'
+        Name        = 'EnableBoottrace'
+        Value       = 0
+        Description = 'Disable Boot trace'
+      }
+    )
+
+    $registerKeys += @(
+      @{
+        Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer'
+        Name        = 'NoDriveTypeAutoRun'
+        Value       = 255
+        Description = 'Disable AutoRun'
+      }
+      @{
+        Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\AutoplayHandlers'
+        Name        = 'DisableAutoplay'
+        Value       = 0
+        Description = 'Disable Autoplay'
+      }
+      @{
+        Key         = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Remote Assistance'
+        Name        = 'fAllowToGetHelp'
+        Value       = 0
+        Description = 'Disable Remote Assistance'
+      }
+    )
+
+    $registerKeys += @(
+      @{
+        Key         = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Terminal Server'
+        Name        = 'fDenyTSConnections'
+        Value       = 0
+        Description = 'Enable Remote Desktop'
+      }
+      @{
+        Key         = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp'
+        Name        = 'UserAuthentication'
+        Value       = 0
+        Description = 'Disabling network level authentication requirement for remote desktop'
+      }
+      @{
+        Key         = 'HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\Windows NT\Terminal Services'
+        Name        = 'fNoRemoteDesktopWallpaper'
+        Value       = 1
+        Description = 'Applying other Remote Desktop settings and tweaks'
       }
       @{
         Key   = 'HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\Windows NT\Terminal Services'
@@ -2059,16 +1949,147 @@ Try
         Value = 3
       }
     )
-			
 
     $registerKeys += @(
       @{
-        Key         = 'HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\Windows\System'
-        Name        = 'EnableSmartScreen'
-        Value       = 0
-        Description = 'Disable Smartscreen'
+        Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System'
+        Name        = 'EnableLUA'
+        Value       = 1
+        Description = 'Set Never Notify UAC settings'
+      }
+      @{
+        Key   = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System'
+        Name  = 'ConsentPromptBehaviorAdmin'
+        Value = 0
+      }
+      @{
+        Key   = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System'
+        Name  = 'ConsentPromptBehaviorUser'
+        Value = 0
+      }
+      @{
+        Key   = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System'
+        Name  = 'PromptOnSecureDesktop'
+        Value = 0
+      }
+      @{
+        Key   = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System'
+        Name  = 'FilterAdministratorToken'
+        Value = 1
+      }
+      @{
+        Key   = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\UIPI'
+        Name  = '(Default)'
+        Value = '0x00000001(1)'
       }
     )
+  
+    $registerKeys += @(
+      @{
+        Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\Reliability'
+        Name        = 'ShutdownReasonOn'
+        Value       = 0
+        Description = 'Disable Shutdown Tracker'
+      }
+    )
+  
+    $registerKeys += @(
+      @{
+        Key         = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Power'
+        Name        = 'HiberFileSizePercent'
+        Value       = 0
+        Description = 'Disable Hibernation'
+      }
+      @{
+        Key   = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Power'
+        Name  = 'HibernateEnabled'
+        Value = 0
+      }
+      @{
+        Key         = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Power'
+        Name        = 'HiberbootEnabled'
+        Value       = 0
+        Description = 'Disable fast startup'
+      }
+    )
+
+    $registerKeys += @(
+      @{
+        Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System'
+        Name        = 'VerboseStatus'
+        Value       = 1
+        Description = 'Enable verbose status messages when you sign in/out of Windows'
+      }
+    )
+  
+    If (Test-IsDesktop)
+    {
+      $registerKeys += @(
+        @{
+          Key         = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Power\PowerSettings\54533251-82be-4824-96c1-47b60b740d00\0cc5b647-c1df-4637-891a-dec35c318583'
+          Name        = 'Attributes'
+          Value       = 0
+          Description = 'Processor performance core parking min cores'
+        }
+        @{
+          Key         = 'HKEY_LOCAL_MACHINE\System\CurrentControlSet\Control\Power\PowerSettings\54533251-82be-4824-96c1-47b60b740d00\0cc5b647-c1df-4637-891a-dec35c318583'
+          Name        = 'ValueMax'
+          Value       = 0
+          Description = 'Disable CPU core parking desktops only'
+        }
+      )
+    }
+
+    # Disable offering of drivers through Windows Update
+    $registerKeys += @(
+      @{
+        Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\DriverSearching'
+        Name        = 'SearchOrderConfig'
+        Value       = 0
+        Description = 'Disabling automatic driver update'
+      }
+      @{
+        Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate'
+        Name        = 'ExcludeWUDriversInQualityUpdate'
+        Value       = 1
+        Description = 'Disabling automatic driver update'
+      }
+    )
+
+    					
+    $registerKeys += @(
+      @{
+        Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\DeliveryOptimization'
+        Name        = 'DODownloadMode'
+        Value       = 0
+        Description = 'Disable seeding of updates to other computers on LAN via Group Policies'
+      }
+      @{
+        Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\DeliveryOptimization'
+        Name        = 'SystemSettingsDownloadMode'
+        Value       = 3
+        Description = 'Restrict Windows Update Peer to Peer only to local network'
+      }
+      @{
+        Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\DeliveryOptimization\Config'
+        Name        = 'DownloadMode'
+        Value       = 1
+        Description = 'Restrict Windows Update Peer to Peer only to local network'
+      }
+      @{
+        Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\DeliveryOptimization\Config'
+        Name        = 'DODownloadMode'
+        Value       = 1
+        Description = 'Restrict Windows Update Peer to Peer only to local network'
+      }
+      @{
+        Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\DeliveryOptimization\Settings'
+        Name        = 'DownloadMode'
+        Value       = 1
+        Description = 'Restrict Windows Update Peer to Peer only to local network'
+      }
+    )
+
     $registerKeys += @(
       @{
         Key         = 'HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\Windows\HomeGroup'
@@ -2078,14 +2099,39 @@ Try
       }
     )
 
-
-		
+    $registerKeys += @(
+      @{
+        Key         = 'HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\Windows NT\CurrentVersion\Software Protection Platform'
+        Name        = 'NoGenTicket '
+        Value       = 1
+        Description = 'Disable Windows license check on startup'
+      }
+    )
+    
+    
+    $registerKeys += @(
+      @{
+        Key         = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management'
+        Name        = 'FeatureSettingsOverride'
+        Value       = 3
+        Description = 'Disable Spectre and Meltdown mitigations'
+      }
+      @{
+        Key         = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management'
+        Name        = 'FeatureSettingsOverrideMask'
+        Value       = 3
+        Description = 'Disable Spectre and Meltdown mitigations'
+      }
+    )
+    
+    Set-RegistryValues -registerKeys $registerKeys
+    
     ##*===============================================
     ##* POST-INSTALLATION
     ##*===============================================
     [string]$installPhase = 'Post-Installation'
 		
-    #Show-InstallationRestartPrompt -CountdownSeconds 600
+    Show-InstallationRestartPrompt -CountdownSeconds 600
   }
   ElseIf ($DeploymentType -ieq 'Uninstall')
   {

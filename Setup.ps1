@@ -136,6 +136,46 @@ Function Convert-RegistryPath
   }
 }
 
+Function Install-CMTrace
+{
+  $CMTrace = (Get-Command -Name cmtrace.exe).Source
+
+  if($CMTrace -ieq $null) 
+  {
+    if(-Not (Test-Path -Path "$env:windir\CCM\cmtrace.exe")) 
+    {
+      if(Test-Path -Path "$PSScriptRoot\Includes\cmtrace.exe") 
+      {
+        Copy-Item -Path "$PSScriptRoot\Includes\cmtrace.exe" -Destination $env:windir
+      } else 
+      {
+        Write-Warning -Message "cmtrace.exe not found in $PSScriptRoot\Includes"
+      }
+    }
+  }
+  
+  New-Item -Path 'HKLM:\Software\Classes\.lo_' -ItemType Directory -Force -ErrorAction SilentlyContinue
+  New-Item -Path 'HKLM:\Software\Classes\.log' -ItemType Directory -Force -ErrorAction SilentlyContinue
+  New-Item -Path 'HKLM:\Software\Classes\.log.File' -ItemType Directory -Force -ErrorAction SilentlyContinue
+  New-Item -Path 'HKLM:\Software\Classes\.Log.File\shell' -ItemType Directory -Force -ErrorAction SilentlyContinue
+  New-Item -Path 'HKLM:\Software\Classes\Log.File\shell\Open' -ItemType Directory -Force -ErrorAction SilentlyContinue
+  New-Item -Path 'HKLM:\Software\Classes\Log.File\shell\Open\Command' -ItemType Directory -Force -ErrorAction SilentlyContinue
+  New-Item -Path 'HKLM:\Software\Microsoft\Trace32' -ItemType Directory -Force -ErrorAction SilentlyContinue
+
+  # Create the properties to make CMtrace the default log viewer
+  New-ItemProperty -LiteralPath 'HKLM:\Software\Classes\.lo_' -Name '(default)' -Value 'Log.File' -PropertyType String -Force -ErrorAction SilentlyContinue
+
+  New-ItemProperty -LiteralPath 'HKLM:\Software\Classes\.log' -Name '(default)' -Value 'Log.File' -PropertyType String -Force -ErrorAction SilentlyContinue
+
+  New-ItemProperty -LiteralPath 'HKLM:\Software\Classes\Log.File\shell\open\command' -Name '(default)' -Value "`"C:\Windows\CCM\CMTrace.exe`" `"%1`"" -PropertyType String -Force -ErrorAction SilentlyContinue
+
+
+  # Create an ActiveSetup that will remove the initial question in CMtrace if it should be the default reader
+  New-Item -Path 'HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\CMtrace' -ItemType Directory
+  New-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\CMtrace' -Name 'Version' -Value 1 -PropertyType String -Force 
+  New-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\CMtrace' -Name 'StubPath' -Value 'reg.exe add HKCU\Software\Microsoft\Trace32 /v ""Register File Types"" /d 0 /f' -PropertyType ExpandString -Force
+}
+
 Function Invoke-DisableBackgroundServices
 {
   Show-Progress -Message '"Disable background access of default apps'
@@ -514,82 +554,82 @@ Function Invoke-DisableServices
   Param
   (
     [string[]]$services = @(
-  'diagnosticshub.standardcollector.service' # Microsoft Diagnostics Hub Standard Collector Service
-  'DiagTrack'                                # Diagnostics Tracking Service
-  'dmwappushservice'                         # WAP Push Message Routing Service
-  'HomeGroupListener'                        # HomeGroup Listener
-  'HomeGroupProvider'                        # HomeGroup Provider
-  'lfsvc'                                    # Geolocation Service
-  'MapsBroker'                               # Downloaded Maps Manager
-  'SharedAccess'                             # Internet Connection Sharing (ICS)
-  'WbioSrvc'                                 # Windows Biometric Service
-  'WMPNetworkSvc'                            # Windows Media Player Network Sharing Service
-  'XblAuthManager'                           # Xbox Live Auth Manager
-  'XblGameSave'                              # Xbox Live Game Save Service
-  'XboxNetApiSvc'                            # Xbox Live Networking Service
-  'TrkWks'                                   # Distributed Link Tracking Client. Description: Maintains links between NTFS files within a computer or across computers in a network.
-  'beep'                                     # Windows Beep Service, stops annoying beeps in powershell console
-  'iphlpsvc'
-  'ALG'
-  'AppMgmt'
-  'PeerDistSvc'
-  'CertPropSvc'
-  'irmon'
-  'MSiSCSI'
-  'NaturalAuthentication'
-  'Netlogon'
-  'RpcLocator'
-  'RetailDemo'
-  'SCPolicySvc'
-  'SNMPTRAP'
-  'wcncsvc'
-  'wisvc'
-  'WinRM'
-  'WwanSvc'
-  'SessionEnv'
-  'TermService'
-  'UmRdpService'
-  'AJRouter'
-  'BthHFSrv'
-  'bthserv'
-  'dmwappushsvc'
-  'HvHost'
-  'vmickvpexchange'
-  'vmicguestinterface'
-  'vmicshutdown'
-  'vmicheartbeat'
-  'vmicvmsession'
-  'vmicrdv'
-  'IpxlatCfgSvc'
-  'SmsRouter'
-  'CscService'
-  'SEMgrSvc'
-  'PhoneSvc'
-  'SensorDataService'
-  'SensrSvc'
-  'SensorService'
-  'ScDeviceEnum'
-  'TabletInputService'
-  'WebClient'
-  'WFDSConSvc'
-  'FrameServer'
-  'icssvc'
-  'xbgm'
-  'XblGameSave'
-  'lfsvc'
-  'NcdAutoSetup'
-  'NfsClnt'
-  'WMPNetworkSvc'
-  'WlanSvc'
-  'lmhosts'
-  'msahci'
-  'p2pimsvc'
-  'PcaSvc'
-  'PNRPsvc'
-  'RemoteRegistry'
-  'SENS'
-  'SysMain'
-),
+      'diagnosticshub.standardcollector.service' # Microsoft Diagnostics Hub Standard Collector Service
+      'DiagTrack'                                # Diagnostics Tracking Service
+      'dmwappushservice'                         # WAP Push Message Routing Service
+      'HomeGroupListener'                        # HomeGroup Listener
+      'HomeGroupProvider'                        # HomeGroup Provider
+      'lfsvc'                                    # Geolocation Service
+      'MapsBroker'                               # Downloaded Maps Manager
+      'SharedAccess'                             # Internet Connection Sharing (ICS)
+      'WbioSrvc'                                 # Windows Biometric Service
+      'WMPNetworkSvc'                            # Windows Media Player Network Sharing Service
+      'XblAuthManager'                           # Xbox Live Auth Manager
+      'XblGameSave'                              # Xbox Live Game Save Service
+      'XboxNetApiSvc'                            # Xbox Live Networking Service
+      'TrkWks'                                   # Distributed Link Tracking Client. Description: Maintains links between NTFS files within a computer or across computers in a network.
+      'beep'                                     # Windows Beep Service, stops annoying beeps in powershell console
+      'iphlpsvc'
+      'ALG'
+      'AppMgmt'
+      'PeerDistSvc'
+      'CertPropSvc'
+      'irmon'
+      'MSiSCSI'
+      'NaturalAuthentication'
+      'Netlogon'
+      'RpcLocator'
+      'RetailDemo'
+      'SCPolicySvc'
+      'SNMPTRAP'
+      'wcncsvc'
+      'wisvc'
+      'WinRM'
+      'WwanSvc'
+      'SessionEnv'
+      'TermService'
+      'UmRdpService'
+      'AJRouter'
+      'BthHFSrv'
+      'bthserv'
+      'dmwappushsvc'
+      'HvHost'
+      'vmickvpexchange'
+      'vmicguestinterface'
+      'vmicshutdown'
+      'vmicheartbeat'
+      'vmicvmsession'
+      'vmicrdv'
+      'IpxlatCfgSvc'
+      'SmsRouter'
+      'CscService'
+      'SEMgrSvc'
+      'PhoneSvc'
+      'SensorDataService'
+      'SensrSvc'
+      'SensorService'
+      'ScDeviceEnum'
+      'TabletInputService'
+      'WebClient'
+      'WFDSConSvc'
+      'FrameServer'
+      'icssvc'
+      'xbgm'
+      'XblGameSave'
+      'lfsvc'
+      'NcdAutoSetup'
+      'NfsClnt'
+      'WMPNetworkSvc'
+      'WlanSvc'
+      'lmhosts'
+      'msahci'
+      'p2pimsvc'
+      'PcaSvc'
+      'PNRPsvc'
+      'RemoteRegistry'
+      'SENS'
+      'SysMain'
+    ),
     [bool]$SkipXboxServices = $false
   )
 	
@@ -1082,10 +1122,10 @@ Function Invoke-AddWindowsFeatures
 
   Process 
   {
-    if(Test-IsAdmin) 
-    {
       Foreach ($feature in $features) 
       {
+      Show-InstallationProgress  -StatusMessage "Adding Windows Feature '$feature'"
+
         if((Get-WindowsOptionalFeature -Online -FeatureName $feature).State -eq 'Disabled') 
         {
           Show-Progress -Message "Adding Windows feature [$feature]" -Source $CmdletName
@@ -1099,11 +1139,6 @@ Function Invoke-AddWindowsFeatures
           }
         }
       }
-    }
-    else 
-    {
-      Write-Log -EntryType Warning  -Message "User is not administrator skipping [$CmdletName]"
-    }
   }
   End {
     Write-FunctionHeaderOrFooter -CmdletName $CmdletName -Footer
@@ -3189,21 +3224,8 @@ Function Invoke-ApplyRegistrySettingsLocalMachine
         }
 				
       )
-				
-      Takeown-Registry -key 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows Defender\Spynet'
+
       $registerKeys += @(
-        @{
-          Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows Defender\Spynet'
-          Name        = 'SpyNetReporting'
-          Value       = 0
-          Description = 'Windows Defender Spynet'
-        }
-        @{
-          Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows Defender\Spynet'
-          Name        = 'SubmitSamplesConsent'
-          Value       = 0
-          Description = 'Windows Defender Sample Submission'
-        }
         @{
           Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\DeliveryOptimization'
           Name        = 'SystemSettingsDownloadMode'
@@ -3227,21 +3249,6 @@ Function Invoke-ApplyRegistrySettingsLocalMachine
           Name        = 'DownloadMode'
           Value       = 1
           Description = 'Restrict Windows Update Peer to Peer only to local network'
-        }
-      )
-				
-      $registerKeys += @(
-        @{
-          Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\WcmSvc\wifinetworkmanager\features'
-          Name        = 'WiFiSenseCredShared'
-          Value       = 0
-          Description = 'WifiSense Credential Share'
-        }
-        @{
-          Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\WcmSvc\wifinetworkmanager\features'
-          Name        = 'WiFiSenseOpen'
-          Value       = 0
-          Description = 'WifiSense Open-ness'
         }
       )
 				
@@ -3947,14 +3954,14 @@ Function Set-HPET {
   Process {
   
     if($EnableHPET.IsPresent) {
-    Show-Progress -Message 'Enabling HPET in Windows' -Source $CmdletName
+      Show-Progress -Message 'Enabling HPET in Windows' -Source $CmdletName
       $null = & "$env:windir\system32\bcdedit.exe" /set useplatformclock true
       $null = & "$env:windir\system32\bcdedit.exe" /set tscsyncpolicy Enhanced
       $null = & "$env:windir\system32\bcdedit.exe" /set disabledynamictick yes
     }
 
     If($DisableHPET.IsPresent) {
-    Show-Progress -Message 'Disabling HPET in Windows' -Source $CmdletName
+      Show-Progress -Message 'Disabling HPET in Windows' -Source $CmdletName
       $null = & "$env:windir\system32\bcdedit.exe" /deletevalue useplatformclock
       $null = & "$env:windir\system32\bcdedit.exe" /deletevalue tscsyncpolicy
       $null = & "$env:windir\system32\bcdedit.exe" /deletevalue disabledynamictick

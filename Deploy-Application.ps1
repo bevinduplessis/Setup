@@ -248,6 +248,13 @@ Try
         Value       = '.zip;.rar;.nfo;.txt;.exe;.bat;.vbs;.com;.cmd;.reg;.msi;.htm;.html;.gif;.bmp;.jpg;.avi;.mpg;.mpeg;.mov;.mp3;.m3u;.wav;'
         Description = 'Disable this publisher could not be verified message when running an executable'
       }
+     
+      @{
+        Key         = 'HKEY_CURRENT_USER\Control Panel\Desktop'
+        Name        = 'WindowArrangementActive'
+        Value       = 0
+        Description = 'Disable windows snapping to the edge of the screen (Multi-monitor)'
+      }
     )
 
 	

@@ -207,7 +207,9 @@ Try
     Unpin-App  -Name 'Mail' 
     Unpin-App  -Name 'Microsoft Store'
 
-    
+    #Set-PinnedApplication -Action 'PintoStartMenu' -FilePath "$envProgramFilesX86\IBM\Lotus\Notes\notes.exe"
+
+
     $NetworkConnection = @{
       Name             = 'Network Connections.lnk'
       TargetPath       = 'explorer.exe'
@@ -2046,8 +2048,7 @@ Try
     [string]$installPhase = 'Post-Installation'
 
 
-    taskkill.exe /F /IM 'explorer.exe'
-    Start-Process -FilePath 'explorer.exe'
+    Update-Desktop
 
 		# Congratulations! Your copy of Windows 10 is now Debotnetted!
     Show-InstallationRestartPrompt -CountdownSeconds 600

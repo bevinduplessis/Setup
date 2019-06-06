@@ -1195,15 +1195,14 @@ Function Disable-WindowsDefender
     
     Set-StartupEntry -Name 'SecurityHealth' -Type 'HKLM' -Operation Remove
     Set-StartupEntry -Name 'WindowsDefender' -Type 'HKLM' -Operation Remove
-
-
+    
     Remove-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Services' -Name 'Sense' -Force -ErrorAction SilentlyContinue
     Remove-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Services' -Name 'SecurityHealthService' -Force -ErrorAction SilentlyContinue
    
 
     if(Test-Path -Path "$(Split-Path -parent $PSScriptRoot)\Includes\install_wim_tweak.exe") 
     {
-      & "$(Split-Path -parent $PSScriptRoot)\Includes\install_wim_tweak.exe" /o /c Windows-Defender /r
+      $null = & "$(Split-Path -parent $PSScriptRoot)\Includes\install_wim_tweak.exe" /o /c Windows-Defender /r
     }
     else
     {
@@ -1220,6 +1219,7 @@ Function Disable-WindowsDefender
     Disable-ScheduledTasks -TaskName $tasks
 
 
+    Takeown-Registry -key 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows Defender\Spynet'
     Takeown-Registry -key 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows Defender\Spynet'
     Takeown-Registry -key 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\WinDefend'
     Set-RegistryValues -registerKeys $DisableWindowsDefenderRegisteryKeys

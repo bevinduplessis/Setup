@@ -222,7 +222,7 @@ Function Set-RegistryValues
         $Name = $registerKey.Name
         $Value = $registerKey.Value
         $Description = $registerKey.Description	
-        If([string]::IsNullOrEmpty($($registerKey.Description))) 
+        If(-Not ([string]::IsNullOrEmpty($($registerKey.Description))))
         {
           Show-InstallationProgress -StatusMessage "Applying Registry Modification: $Description"
         }
@@ -253,6 +253,53 @@ Function Set-RegistryValues
     }
   }
 		
+  End {
+    Write-FunctionHeaderOrFooter -CmdletName $CmdletName -Footer
+  }
+}
+
+
+
+Function New-Shortcut
+{
+  [CmdletBinding()]
+  Param(
+    [string]$Name,
+    [string]$TargetPath,
+    [string]$Arguments,
+    [string]$WorkingDirectory,
+    [string]$IconLocation,
+    [string]$Description,
+    [string]$Destination
+  )
+  
+  Begin {
+    [string]$CmdletName = $PSCmdlet.MyInvocation.MyCommand.Name
+    Write-FunctionHeaderOrFooter -CmdletName $CmdletName -CmdletBoundParameters $PSBoundParameters -Header
+  }
+  
+  Process {
+
+    if(Test-Path -Path "$env:USERPROFILE\Desktop\$Name") 
+    {
+      Remove-Item -Path "$env:USERPROFILE\Desktop\$Name" -Force
+    }
+  
+    $ShortcutPath = Join-Path -Path $Destination -ChildPath $Name
+  
+    $Shell = New-Object -ComObject ('WScript.Shell')
+    $ShortCut = $Shell.CreateShortcut($ShortcutPath)
+    $ShortCut.TargetPath = $TargetPath
+    $ShortCut.Arguments = $Arguments
+    $ShortCut.WorkingDirectory = $WorkingDirectory
+    $ShortCut.WindowStyle = 1
+    $ShortCut.Hotkey = ''
+    $ShortCut.IconLocation = $IconLocation
+    $ShortCut.Description = $Description
+    $ShortCut.Save()
+
+  }
+  
   End {
     Write-FunctionHeaderOrFooter -CmdletName $CmdletName -Footer
   }
@@ -417,7 +464,7 @@ Function Invoke-InstallCMTrace
   }
 }
 
-Function Disable-GameDVR
+Function Disable-GameDVRXboxServices
 {
   Begin {
     [string]$CmdletName = $PSCmdlet.MyInvocation.MyCommand.Name
@@ -426,16 +473,16 @@ Function Disable-GameDVR
 
   Process {
 
-    Show-InstallationProgress -StatusMessage 'Disable GameDVR and Gamebar'
+    Show-InstallationProgress -StatusMessage 'Disable GameDVR, Gamebar and Xbox Services'
 
     if((Test-Path -LiteralPath 'HKCU:\Software\Microsoft\GameBar') -ne $true) 
     {
-      New-Item -Path 'HKCU:\Software\Microsoft\GameBar' -Force -ErrorAction SilentlyContinue
-    }
+New-Item -Path 'HKCU:\Software\Microsoft\GameBar' -Force -ErrorAction SilentlyContinue
+}
     if((Test-Path -LiteralPath 'HKCU:\System\GameConfigStore') -ne $true) 
     {
-      New-Item -Path 'HKCU:\System\GameConfigStore' -Force -ErrorAction SilentlyContinue
-    }
+New-Item -Path 'HKCU:\System\GameConfigStore' -Force -ErrorAction SilentlyContinue
+}
     New-ItemProperty -LiteralPath 'HKCU:\Software\Microsoft\GameBar' -Name 'UseNexusForGameBarEnabled' -Value 0 -PropertyType DWord -Force -ea SilentlyContinue
     New-ItemProperty -LiteralPath 'HKCU:\Software\Microsoft\GameBar' -Name 'AutoGameModeEnabled' -Value 0 -PropertyType DWord -Force -ea SilentlyContinue
     New-ItemProperty -LiteralPath 'HKCU:\System\GameConfigStore' -Name 'GameDVR_Enabled' -Value 0 -PropertyType DWord -Force -ea SilentlyContinue
@@ -446,6 +493,21 @@ Function Disable-GameDVR
     New-ItemProperty -LiteralPath 'HKCU:\System\GameConfigStore' -Name 'GameDVR_EFSEFeatureFlags' -Value 0 -PropertyType DWord -Force -ea SilentlyContinue
     New-ItemProperty -LiteralPath 'HKCU:\System\GameConfigStore' -Name 'Win32_AutoGameModeDefaultProfile' -Value ([byte[]](0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0xc4, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00)) -PropertyType Binary -Force -ea SilentlyContinue
     New-ItemProperty -LiteralPath 'HKCU:\System\GameConfigStore' -Name 'Win32_GameModeRelatedProcesses' -Value ([byte[]](0x01, 0x00, 0x01, 0x00, 0x01, 0x00, 0xc0, 0x00, 0xc6, 0x02, 0x50, 0x54, 0xc7, 0x02, 0x70, 0x00, 0x61, 0x00, 0x6e, 0x00, 0x65, 0x00, 0x6c, 0x00, 0x2e, 0x00, 0x65, 0x00, 0x78, 0x00, 0x65, 0x00, 0x00, 0x00, 0x8c, 0x00, 0x4e, 0x8d, 0xe1, 0x74, 0xb8, 0xed, 0xd2, 0x02, 0x18, 0x4c, 0xc7, 0x02, 0x1e, 0x00, 0x00, 0x00, 0xb8, 0xed, 0xd2, 0x02, 0x1e, 0x00, 0x00, 0x00, 0x0f, 0x00, 0x00, 0x00, 0x30, 0xe7, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00)) -PropertyType Binary -Force -ea SilentlyContinue
+
+    Disable-WindowsService -Service @(
+      'XblAuthManager'                           # Xbox Live Auth Manager
+      'XblGameSave'                              # Xbox Live Game Save Service
+      'XboxNetApiSvc'                            # Xbox Live Networking Service
+      'XboxGipSvc'                               # Xbox Accessory Management Service
+)
+
+  Disable-ScheduledTasks -TaskName @(
+  'Microsoft\XblGameSave\XblGameSaveTask'
+  'Microsoft\XblGameSave\XblGameSaveTaskLogon'
+  )
+
+  Remove-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Services' -Name 'xbgm' -ErrorAction SilentlyContinue
+
   }
 
   End {
@@ -469,6 +531,36 @@ Function Set-DEPOptOut
     Write-FunctionHeaderOrFooter -CmdletName $CmdletName -Footer
   }
 }
+
+Function Set-PowershellRunAsAdminContextMenu
+{
+  Begin {
+    [string]$CmdletName = $PSCmdlet.MyInvocation.MyCommand.Name
+    Write-FunctionHeaderOrFooter -CmdletName $CmdletName -CmdletBoundParameters $PSBoundParameters -Header
+  }
+  Process {
+
+    Show-InstallationProgress -StatusMessage 'Adding run as administrator to .ps1 file context menu'
+
+    Remove-Item -LiteralPath 'HKLM:\SOFTWARE\Classes\Microsoft.PowerShellScript.1\Shell\runas' -Force -ErrorAction SilentlyContinue
+    if((Test-Path -LiteralPath 'HKLM:\SOFTWARE\Classes\Microsoft.PowerShellScript.1\Shell\runas') -ne $true) 
+    {
+      New-Item -Path 'HKLM:\SOFTWARE\Classes\Microsoft.PowerShellScript.1\Shell\runas' -Force -ErrorAction SilentlyContinue 
+    }
+    if((Test-Path -LiteralPath 'HKLM:\SOFTWARE\Classes\Microsoft.PowerShellScript.1\Shell\runas\command') -ne $true) 
+    {
+      New-Item -Path 'HKLM:\SOFTWARE\Classes\Microsoft.PowerShellScript.1\Shell\runas\command' -Force -ErrorAction SilentlyContinue 
+    }
+    New-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Classes\Microsoft.PowerShellScript.1\Shell\runas' -Name 'HasLUAShield' -Value '' -PropertyType String -Force -ErrorAction SilentlyContinue
+    New-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Classes\Microsoft.PowerShellScript.1\Shell\runas\command' -Name '(default)' -Value "powershell `"-Command`" `"if((Get-ExecutionPolicy ) -ne 'AllSigned') { Set-ExecutionPolicy -Scope Process Bypass }; & '%1'`"" -PropertyType String -Force -ErrorAction SilentlyContinue
+
+  }
+  End {
+    Write-FunctionHeaderOrFooter -CmdletName $CmdletName -Footer
+  }
+}
+
+
 
 Function Set-WindowsUpdateSettings 
 {
@@ -631,7 +723,7 @@ Function Disable-ScheduledTasks
       Write-Log -Message "Removing scheduled task '$Task'" -Source $CmdletName
       try 
       {
-        Disable-ScheduledTask -TaskName $Task -ErrorAction Stop
+        $null = Disable-ScheduledTask -TaskName $Task -ErrorAction Stop
       }
       catch 
       {
@@ -873,7 +965,7 @@ Function Install-CCEnhancer
     }
     else 
     {
-      Write-Error -Message 'CCleaner is not installed'
+      Write-Warning -Message 'Skipping installation CCleaner is not installed'
     }
     
 
@@ -905,7 +997,18 @@ Function Install-ISLC
      
     if(Test-Path -Path "$($env:ProgramW6432)\ISLC v1.0.1.1\Intelligent standby list cleaner ISLC.exe")
     {
-      Set-StartupEntry -Name 'ISLC' -Type HKLM -Operation Add -Path "$($env:ProgramW6432)\ISLC v1.0.1.1\Intelligent standby list cleaner ISLC.exe"
+
+    $ISLC = @{
+      Name             = 'ISLC.lnk'
+      TargetPath       = "$($env:ProgramW6432)\ISLC v1.0.1.1\Intelligent standby list cleaner ISLC.exe"
+      Arguments        = $null
+      IconLocation     = "$($env:ProgramW6432)\ISLC v1.0.1.1\Intelligent standby list cleaner ISLC.exe"
+      Description      = 'Intelligent standby list cleaner'
+      WorkingDirectory = $null
+      Destination      = "$env:ProgramData\Microsoft\Windows\Start Menu\Programs\StartUp"
+    }
+    New-Shortcut @ISLC
+
     }
 
   } End {
@@ -964,7 +1067,7 @@ Function Remove-BuiltinWindowsApplications
         Try 
         {
           Show-InstallationProgress -StatusMessage "Removing AppxPackage '$($AppPackageFullName)'"
-          Remove-AppxPackage -Package $AppPackageFullName -ErrorAction Stop
+          $null = Remove-AppxPackage -Package $AppPackageFullName -ErrorAction Stop
         }
         Catch  
         {
@@ -975,7 +1078,7 @@ Function Remove-BuiltinWindowsApplications
         Try 
         {
           Show-InstallationProgress -StatusMessage "Removing AppxProvisioningPackage '$($AppProvisioningPackageName)'" 
-          Remove-AppxProvisionedPackage -PackageName $AppProvisioningPackageName -Online -ErrorAction Stop
+          $null = Remove-AppxProvisionedPackage -PackageName $AppProvisioningPackageName -Online -ErrorAction Stop
         }
         Catch  
         {
@@ -1005,19 +1108,42 @@ Function Disable-WindowsDefender
   {
     Show-InstallationProgress -StatusMessage 'Disable Windows Defender'
 
-
-    $tasks = @(
-      'Microsoft\Windows\Windows Defender\Windows Defender Cache Maintenance'
-      'Microsoft\Windows\Windows Defender\Windows Defender Cleanup'
-      'Microsoft\Windows\Windows Defender\Windows Defender Scheduled Scan'
-      'Microsoft\Windows\Windows Defender\Windows Defender Verification'
-    )
-
-    Disable-ScheduledTasks -TaskName $tasks
-
-    Takeown-Registry -key 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows Defender\Spynet'
-    Takeown-Registry -key 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\WinDefend'
-    $DisableWindowsDefenderRegisteryKeys = @(
+    $Edge = (Get-AppxPackage -AllUsers -Name 'Microsoft.MicrosoftEdge') | Select-Object -Property PackageFamilyName -ExpandProperty PackageFamilyName -First 1
+    $DisableWindowsDefenderRegisteryKeys += @(
+      @{
+        Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer'
+        Name        = 'SmartScreenEnabled'
+        Value       = 'Off'
+        Description = 'Disabling SmartScreen Filter...'
+      }
+      @{
+        Key         = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\AppHost'
+        Name        = 'EnableWebContentEvaluation'
+        Value       = 0
+        Description = 'Disabling SmartScreen Filter...'
+      }
+      @{
+        Key   = "HKEY_CURRENT_USER\SOFTWARE\Classes\Local Settings\Software\Microsoft\Windows\CurrentVersion\AppContainer\Storage\$Edge\MicrosoftEdge\PhishingFilter"
+        Name  = 'EnabledV9'
+        Value = 0
+      }
+      @{
+        Key   = "HKEY_CURRENT_USER\SOFTWARE\Classes\Local Settings\Software\Microsoft\Windows\CurrentVersion\AppContainer\Storage\$Edge\MicrosoftEdge\PhishingFilter"
+        Name  = 'PreventOverride'
+        Value = 0
+      }
+      @{
+        Key         = 'HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\Windows\System'
+        Name        = 'EnableSmartScreen'
+        Value       = 0
+        Description = 'Disabling SmartScreen in GPO'
+      }
+      @{
+        Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows Defender'
+        Name        = 'DisableAntiSpyware'
+        Value       = 1
+        Description = 'Disable Windows Defender'
+      }
       @{
         Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows Defender\Spynet'
         Name        = 'SpyNetReporting'
@@ -1031,50 +1157,81 @@ Function Disable-WindowsDefender
         Description = 'Windows Defender Sample Submission'
       }
       @{
-        Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows Defender'
-        Name        = 'DisableAntiSpyware'
+        Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows Defender\Spynet'
+        Name        = 'DontReportInfectionInformation'
         Value       = 1
-        Description = 'Disable Windows Defender'
+        Description = 'Windows Defender Sample Submission'
       }
       @{
-        Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows Defender'
-        Name        = 'DisableRoutinelyTakingAction'
-        Value       = 1
-        Description = 'Disable Windows Defender Routinely Taking Action'
+        Key   = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\MRT'
+        Name  = 'DontReportInfectionInformation'
+        Value = 1
       }
       @{
-        Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\Policies\Microsoft\Windows Defender\Real-Time Protection'
-        Name        = 'DisableRealtimeMonitoring'
-        Value       = 1
-        Description = 'Disable Windows Defender Realtime Protection'
+        Key   = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\MRT'
+        Name  = 'DontOfferThroughWUAU'
+        Value = 1
+      }
+
+      @{
+        Key   = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Run'
+        Name  = 'SecurityHealth'
+        Value = 1
       }
       @{
-        Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Classes\CLSID\{09A47860-11B0-4DA5-AFA5-26D86198A780}\InprocServer32'
-        Name        = 'Default'
-        Value       = ''
-        Description = 'Removing Windows Defender context menu item'
+        Key   = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\SecHealthUI.exe'
+        Name  = 'Debugger'
+        Value = '%windir%\System32\taskkill.exe'
       }
       @{
-        Key         = 'HKEY_CURRENT_USER\Software\Microsoft\Windows Defender'
-        Name        = 'UIFirstRun'
-        Value       = 0
-        Description = 'Disable Windows Defender First Run UI'
+        Key   = 'HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\Notifications\Settings\Windows.SystemToast.SecurityAndMaintenance'
+        Name  = 'Enabled'
+        Value = '0'
       }
     )
 
-    Set-RegistryValues -registerKeys $DisableWindowsDefenderRegisteryKeys
-    
-    Disable-WindowsService -Service 'WinDefend'
-    Disable-WindowsService -Service 'WdNisSvc'
-    Disable-WindowsService -Service 'Sense'
 
-    Show-InstallationProgress -StatusMessage 'Removing Windows Defender GUI / tray from autorun'
+    Remove-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run' -Name 'SecurityHealth' -ErrorAction SilentlyContinue
+    
+    Set-StartupEntry -Name 'SecurityHealth' -Type 'HKLM' -Operation Remove
     Set-StartupEntry -Name 'WindowsDefender' -Type 'HKLM' -Operation Remove
+
+
+    Remove-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Services' -Name 'Sense' -Force -ErrorAction SilentlyContinue
+    Remove-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Services' -Name 'SecurityHealthService' -Force -ErrorAction SilentlyContinue
+   
+
+    if(Test-Path -Path "$(Split-Path -parent $PSScriptRoot)\Includes\install_wim_tweak.exe") 
+    {
+      & "$(Split-Path -parent $PSScriptRoot)\Includes\install_wim_tweak.exe" /o /c Windows-Defender /r
+    }
+    else
+    {
+      Write-Warning -Message "install_wim_tweak.exe not found in $(Split-Path -parent $PSScriptRoot)\\Includes"
+    }
+
+    $tasks = @(
+      'Microsoft\Windows\Windows Defender\Windows Defender Cache Maintenance'
+      'Microsoft\Windows\Windows Defender\Windows Defender Cleanup'
+      'Microsoft\Windows\Windows Defender\Windows Defender Scheduled Scan'
+      'Microsoft\Windows\Windows Defender\Windows Defender Verification'
+    )
+
+    Disable-ScheduledTasks -TaskName $tasks
+
+
+    Takeown-Registry -key 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows Defender\Spynet'
+    Takeown-Registry -key 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\WinDefend'
+    Set-RegistryValues -registerKeys $DisableWindowsDefenderRegisteryKeys
+
   }
   End {
     Write-FunctionHeaderOrFooter -CmdletName $CmdletName -Footer
   }
 }
+
+
+    
 
 
 Function Set-TerminalShortcutsAsAdmin
@@ -1088,8 +1245,8 @@ Function Set-TerminalShortcutsAsAdmin
     Write-FunctionHeaderOrFooter -CmdletName $CmdletName -CmdletBoundParameters $PSBoundParameters -Header
   }
 
-  Process {
-
+  Process 
+  {
     Show-InstallationProgress -StatusMessage 'Set Powershell and Command Prompt to run as administrator'
 
     $PowerShellPath = "$env:SystemDrive\Users\Default\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Windows PowerShell\"
@@ -1116,8 +1273,6 @@ Function Set-TerminalShortcutsAsAdmin
   }
 
   End {
-
-
     Write-FunctionHeaderOrFooter -CmdletName $CmdletName -Footer
   }
 }
@@ -1133,8 +1288,8 @@ Function Disable-SMBv1
   {
     Show-InstallationProgress -StatusMessage 'Disabling SMBv1'
 
-    Disable-WindowsOptionalFeature -Online -FeatureName SMB1Protocol -NoRestart
-    Set-SmbServerConfiguration -EnableSMB1Protocol $false -Force
+    $null = Disable-WindowsOptionalFeature -Online -FeatureName SMB1Protocol -NoRestart
+    $null = Set-SmbServerConfiguration -EnableSMB1Protocol $false -Force
   }
 
   End {
@@ -1191,7 +1346,6 @@ Function Set-StartupEntry
   # HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\RunOnce
   # HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\RunOnce
 
-
   if($Type -imatch 'HKLM')
   {
     if($RunOnce.IsPresent) 
@@ -1246,51 +1400,6 @@ Function Set-StartupEntry
 }
 
 
-Function New-Shortcut
-{
-  [CmdletBinding()]
-  Param(
-    [string]$Name,
-    [string]$TargetPath,
-    [string]$Arguments,
-    [string]$WorkingDirectory,
-    [string]$IconLocation,
-    [string]$Description,
-    [string]$Destination
-  )
-  
-  Begin {
-    [string]$CmdletName = $PSCmdlet.MyInvocation.MyCommand.Name
-    Write-FunctionHeaderOrFooter -CmdletName $CmdletName -CmdletBoundParameters $PSBoundParameters -Header
-  }
-  
-  Process {
-
-    if(Test-Path -Path "$env:USERPROFILE\Desktop\$Name") 
-    {
-      Remove-Item -Path "$env:USERPROFILE\Desktop\$Name" -Force
-    }
-  
-    $ShortcutPath = Join-Path -Path $Destination -ChildPath $Name
-  
-    $Shell = New-Object -ComObject ('WScript.Shell')
-    $ShortCut = $Shell.CreateShortcut($ShortcutPath)
-    $ShortCut.TargetPath = $TargetPath
-    $ShortCut.Arguments = $Arguments
-    $ShortCut.WorkingDirectory = $WorkingDirectory
-    $ShortCut.WindowStyle = 1
-    $ShortCut.Hotkey = ''
-    $ShortCut.IconLocation = $IconLocation
-    $ShortCut.Description = $Description
-    $ShortCut.Save()
-
-  }
-  
-  End {
-    Write-FunctionHeaderOrFooter -CmdletName $CmdletName -Footer
-  }
-}
-
 function Unpin-App 
 {
   [CmdletBinding()]
@@ -1330,24 +1439,6 @@ function Unpin-App
   }
 }
 
-
-# Set Photo Viewer association for bmp, gif, jpg, png and tif
-function Set-PhotoViewerAssociation
-{
-  Show-InstallationProgress  -StatusMessage  'Setting Photo Viewer association for bmp, gif, jpg, png and tif...'
-
-  If (!(Test-Path -Path 'HKCR:'))
-  {
-    $null = New-PSDrive -Name HKCR -PSProvider Registry -Root HKEY_CLASSES_ROOT
-  }
-  ForEach ($Type in @('Paint.Picture', 'giffile', 'jpegfile', 'pngfile'))
-  {
-    $null = New-Item -Path $("HKCR:\$Type\shell\open") -Force
-    $null = New-Item -Path $("HKCR:\$Type\shell\open\command")
-    Set-ItemProperty -Path $("HKCR:\$Type\shell\open") -Name 'MuiVerb' -Type ExpandString -Value '@%ProgramFiles%\Windows Photo Viewer\photoviewer.dll,-3043'
-    Set-ItemProperty -Path $("HKCR:\$Type\shell\open\command") -Name '(Default)' -Type ExpandString -Value "%SystemRoot%\System32\rundll32.exe `"%ProgramFiles%\Windows Photo Viewer\PhotoViewer.dll`", ImageView_Fullscreen %1"
-  }
-}
 # Add Photo Viewer to "Open with..."
 function Add-PhotoViewerOpenWith
 {
@@ -1362,13 +1453,6 @@ function Add-PhotoViewerOpenWith
   Set-ItemProperty -Path 'HKCR:\Applications\photoviewer.dll\shell\open' -Name 'MuiVerb' -Type String -Value '@photoviewer.dll,-3043'
   Set-ItemProperty -Path 'HKCR:\Applications\photoviewer.dll\shell\open\command' -Name '(Default)' -Type ExpandString -Value "%SystemRoot%\System32\rundll32.exe `"%ProgramFiles%\Windows Photo Viewer\PhotoViewer.dll`", ImageView_Fullscreen %1"
   Set-ItemProperty -Path 'HKCR:\Applications\photoviewer.dll\shell\open\DropTarget' -Name 'Clsid' -Type String -Value '{FFE2A43C-56B9-4bf5-9A79-CC6D4285608A}'
-}
-
-# Hide Task View button
-function Set-HideTaskView
-{
-  Show-InstallationProgress  -StatusMessage  'Hiding Task View button...'
-  Set-ItemProperty -Path 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced' -Name 'ShowTaskViewButton' -Type DWord -Value 0
 }
 
 
@@ -1401,7 +1485,6 @@ function Uninstall-OneDrive
   Show-InstallationProgress -StatusMessage 'Uninstall OneDrive'
 
   taskkill.exe /F /IM 'OneDrive.exe'
-  taskkill.exe /F /IM 'explorer.exe'
 	
   if (Test-Path -Path "$env:systemroot\System32\OneDriveSetup.exe")
   {
@@ -1411,7 +1494,7 @@ function Uninstall-OneDrive
   {
     & "$env:systemroot\SysWOW64\OneDriveSetup.exe" /uninstall
   }
-  Start-Process -FilePath 'explorer.exe'
+
 }
 
 Function Disable-ApplicationsRunningInBackground
@@ -1699,7 +1782,7 @@ Function Disable-BeepService
   }
 }
 
-function Takeown-Registry 
+function Takeown-Registry
 {
   # TODO does not work for all root keys yet
     

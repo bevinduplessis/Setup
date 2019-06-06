@@ -125,12 +125,13 @@ Try
     
     
     Show-InstallationWelcome -Silent
-
-    ##*##########################################
+   
+   #region InstallSoftware
+    ##*===============================================
     ##*  
     ##* Install Software
     ##*
-    ##*###########################################
+    ##*===============================================
 
     <#
         Show-InstallationProgress -StatusMessage 'Installing Chocolatey Packages'
@@ -183,16 +184,19 @@ Try
     Install-ISLC
     
     Invoke-InstallCMTrace
-
-    ##*##########################################
+#endregion
+    
+#region QualityofLifeTweaks
+    ##*===============================================
     ##*  
     ##* Quality of Life Tweaks and Settings
     ##*
-    ##*###########################################
-
+    ##*===============================================
+    
     [string]$installPhase = 'Installation'
 
-    
+    Set-PowershellRunAsAdminContextMenu
+
     Disable-WindowsThemeSounds
 
     Clean-DesktopIcons
@@ -241,7 +245,6 @@ Try
         Value       = 1
         Description = 'Disable saving zone information to files eg: Unblock file in file properties'
       }
-
       @{
         Key         = 'HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Policies\Associations'
         Name        = 'LowRiskFileTypes '
@@ -356,6 +359,18 @@ Try
         Value       = "$env:SystemDrive\Windows\Web\Wallpaper\Windows\img0.jpg"
         Description = 'Set desktop default wallpaper'
       }
+      @{
+        Key         = 'HKEY_CURRENT_USER\Software\Microsoft\Windows\Shell\Bags\1\Desktop'
+        Name        = 'IconSize'
+        Value       = 16
+        Description = 'Set small desktop icon size'
+      }
+      @{
+        Key         = 'HKEY_CURRENT_USER\Software\Microsoft\Windows\Shell\Bags\1\Desktop'
+        Name        = 'FFLAGS'
+        Value       = 1075839524 
+        Description = 'Auto arrange desktop icons'
+      }
     )
 			
     # Explorer Settings
@@ -407,13 +422,13 @@ Try
         Key         = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
         Name        = 'ShowSyncProviderNotifications'
         Value       = 0
-        Description = 'Ads in File Explorer'
+        Description = 'Disabling Ads in File Explorer'
       }
       @{
         Key         = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
         Name        = 'SubscribedContent-310093Enabled'
         Value       = 0
-        Description = 'Show me the Windows welcome experience after updates and occasionally'
+        Description = 'Disabling showing the Windows welcome experience after updates and occasionally after logging in'
       }
       @{
         Key         = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
@@ -439,6 +454,12 @@ Try
       }
       @{
         Key         = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'
+        Name        = 'SubscribedContent-314559Enabled'
+        Value       = 0
+        Description = 'Disable show suggestions occasionally'
+      }
+      @{
+        Key         = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'
         Name        = 'SubscribedContent-338387Enabled'
         Value       = 0
         Description = 'Disable show suggestions occasionally'
@@ -459,7 +480,7 @@ Try
         Key         = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'
         Name        = 'SubscribedContent-338393Enabled'
         Value       = 0
-        Description = 'Disable show suggested content in settings'
+        Description = 'Disable show suggested content in settings app'
       }
       @{
         Key         = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'
@@ -492,6 +513,12 @@ Try
       @{
         Key         = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'
         Name        = 'PreInstalledAppsEnabled'
+        Value       = 0
+        Description = 'Disable preinstalled apps, Minecraft and Twitter etc'
+      }
+      @{
+        Key         = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager'
+        Name        = 'FeatureManagementEnabled'
         Value       = 0
         Description = 'Disable preinstalled apps, Minecraft and Twitter etc'
       }
@@ -575,128 +602,36 @@ Try
         Value       = 0
         Description = 'Show all tray icons'
       }
-    )
-       
-    $registerKeys += @(
-      @{
-        Key         = 'HKEY_CLASSES_ROOT\*\shell\runas'
-        Name        = '(Default)'
-        Value       = 'Take Ownership'
-        Description = 'Add take ownership to context menus'
-      }
-      @{
-        Key   = 'HKEY_CLASSES_ROOT\*\shell\runas'
-        Name  = 'HasLUAShield'
-        Value = ''
-      }
-      @{
-        Key   = 'HKEY_CLASSES_ROOT\*\shell\runas'
-        Name  = 'NoWorkingDirectory'
-        Value = ''
-      }
-      @{
-        Key   = 'HKEY_CLASSES_ROOT\*\shell\runas\command'
-        Name  = '(Default)'
-        Value = 'cmd.exe /c takeown /f "%1" && icacls "%1" /grant administrators:F /c /l && pause'
-      }
-      @{
-        Key   = 'HKEY_CLASSES_ROOT\*\shell\runas\command'
-        Name  = 'IsolatedCommand'
-        Value = 'cmd.exe /c takeown /f "%1" && icacls "%1" /grant administrators:F /c /l && pause'
-      }
-      @{
-        Key   = 'HKEY_CLASSES_ROOT\Directory\shell\runas'
-        Name  = '(Default)'
-        Value = 'Take Ownership'
-      }
-      @{
-        Key   = 'HKEY_CLASSES_ROOT\Directory\shell\runas'
-        Name  = 'HasLUAShield'
-        Value = ''
-      }
-      @{
-        Key   = 'HKEY_CLASSES_ROOT\Directory\shell\runas\command'
-        Name  = 'NoWorkingDirectory'
-        Value = ''
-      }
-      @{
-        Key   = 'HKEY_CLASSES_ROOT\Directory\shell\runas'
-        Name  = '(Default)'
-        Value = 'cmd.exe /c takeown /f "%1" /r /d y && icacls "%1" /grant administrators:F /t /c /l /q && pause'
-      }
-      @{
-        Key   = 'HKEY_CLASSES_ROOT\Directory\shell\runas'
-        Name  = 'IsolatedCommand'
-        Value = 'cmd.exe /c takeown /f "%1" /r /d y && icacls "%1" /grant administrators:F /t /c /l /q && pause'
-      }
-      @{
-        Key   = 'HKEY_CLASSES_ROOT\dllfile\shell\runas'
-        Name  = '(Default)'
-        Value = 'Take Ownership'
-      }
-      @{
-        Key   = 'HKEY_CLASSES_ROOT\dllfile\shell\runas'
-        Name  = 'HasLUAShield'
-        Value = ''
-      }
-      @{
-        Key   = 'HKEY_CLASSES_ROOT\dllfile\shell\runas'
-        Name  = 'NoWorkingDirectory'
-        Value = ''
-      }
-      @{
-        Key   = 'HKEY_CLASSES_ROOT\dllfile\shell\runas\command'
-        Name  = '(Default)'
-        Value = 'cmd.exe /c takeown /f "%1" && icacls "%1" /grant administrators:F /c /l && pause'
-      }
-      @{
-        Key   = 'HKEY_CLASSES_ROOT\dllfile\shell\runas\command'
-        Name  = 'IsolatedCommand'
-        Value = 'cmd.exe /c takeown /f "%1" && icacls "%1" /grant administrators:F /c /l && pause'
-      }
-      @{
-        Key   = 'HKEY_CLASSES_ROOT\Drive\shell\runas'
-        Name  = '(Default)'
-        Value = 'Take Ownership'
-      }
-      @{
-        Key   = 'HKEY_CLASSES_ROOT\Drive\shell\runas'
-        Name  = 'HasLUAShield'
-        Value = ''
-      }
-      @{
-        Key   = 'HKEY_CLASSES_ROOT\Drive\shell\runas'
-        Name  = 'NoWorkingDirectory'
-        Value = ''
-      }
-      @{
-        Key   = 'HKEY_CLASSES_ROOT\Drive\shell\runas\command'
-        Name  = '(Default)'
-        Value = 'cmd.exe /c takeown /f "%1" /r /d y && icacls "%1" /grant administrators:F /t /c /l /q && pause'
-      }
-      @{
-        Key   = 'HKEY_CLASSES_ROOT\Drive\shell\runas\command'
-        Name  = 'IsolatedCommand'
-        Value = 'cmd.exe /c takeown /f "%1" /r /d y && icacls "%1" /grant administrators:F /t /c /l /q && pause'
-      }
-      @{
-        Key   = 'HKEY_CLASSES_ROOT\exefile\shell\runas'
-        Name  = 'HasLUAShield'
-        Value = ''
-      }
-      @{
-        Key   = 'HKEY_CLASSES_ROOT\exefile\shell\runas\command'
-        Name  = '(Default)'
-        Value = '"%1" %*'
-      }
-      @{
-        Key   = 'HKEY_CLASSES_ROOT\exefile\shell\runas\command'
-        Name  = 'IsolatedCommand'
-        Value = '"%1" %*'
-      }
-    )
 
+      @{
+        Key         = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\ControlPanel'
+        Name        = 'StartupPage'
+        Value       = 1
+        Description = 'Show all tray icons'
+      }
+
+      @{
+        Key         = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\ControlPanel'
+        Name        = 'AllItemsIconView'
+        Value       = 1
+        Description = 'Show all tray icons'
+      }
+
+    )
+    
     $registerKeys += @(
+      @{
+        Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Explorer'
+        Name        = 'NoUseStoreOpenWith'
+        Value       = 1
+        Description = 'Enabling Classic Control Panel Icons.'
+      }
+      @{
+        Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Explorer'
+        Name        = 'NoNewAppAlert'
+        Value       = 1
+        Description = 'Enabling Classic Control Panel Icons.'
+      }
       @{
         Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\FolderDescriptions\{a0c69a99-21c8-4671-8703-7934162fcf1d}\PropertyBag'
         Name        = 'ThisPCPolicy'
@@ -735,32 +670,26 @@ Try
       }
     )
 
-    ##*##########################################
+#endregion
+
+
+#region PrivacySecurity
+
+    ##*===============================================
     ##*
     ##* Privacy & Security
     ##*
-    ##*###########################################
+    ##*===============================================
     Disable-SMBv1
-
-    
+        
     Disable-SharingWifiNetworks
-
-   
+       
     Set-WindowsSearchWebResults
-
-    
-    Set-PhotoViewerAssociation
-
-    
+        
     Add-PhotoViewerOpenWith
-
-    
-    Set-HideTaskView
-
     
     Set-Hide3DObjectsFromThisPC
-
-    
+        
     Set-Hide3DObjectsFromExplorer
 
     $Edge = (Get-AppxPackage -AllUsers -Name 'Microsoft.MicrosoftEdge') | Select-Object -Property PackageFamilyName -ExpandProperty PackageFamilyName -First 1
@@ -1145,39 +1074,6 @@ Try
         Name        = 'Value'
         Value       = 'Deny'
         Description = 'Disable location tracking'
-      }
-    )
-
-      			
-    # Disable SmartScreen Filter
-    $registerKeys += @(
-      @{
-        Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer'
-        Name        = 'SmartScreenEnabled'
-        Value       = 'Off'
-        Description = 'Disabling SmartScreen Filter...'
-      }
-      @{
-        Key         = 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\AppHost'
-        Name        = 'EnableWebContentEvaluation'
-        Value       = 0
-        Description = 'Disabling SmartScreen Filter...'
-      }
-      @{
-        Key   = "HKEY_CURRENT_USER\SOFTWARE\Classes\Local Settings\Software\Microsoft\Windows\CurrentVersion\AppContainer\Storage\$Edge\MicrosoftEdge\PhishingFilter"
-        Name  = 'EnabledV9'
-        Value = 0
-      }
-      @{
-        Key   = "HKEY_CURRENT_USER\SOFTWARE\Classes\Local Settings\Software\Microsoft\Windows\CurrentVersion\AppContainer\Storage\$Edge\MicrosoftEdge\PhishingFilter"
-        Name  = 'PreventOverride'
-        Value = 0
-      }
-      @{
-        Key         = 'HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\Windows\System'
-        Name        = 'EnableSmartScreen'
-        Value       = 0
-        Description = 'Disabling SmartScreen in GPO'
       }
     )
 
@@ -1608,18 +1504,21 @@ Try
       }
     )
 
+#endregion
 
-    ###########################################
+
+#region PerformanceOptimization
+    ##*===============================================
     #
     # Performance and Optimization
     #
-    ############################################
+    ##*===============================================
 
     
     Set-WindowsPowerPlan -HighPerformance
 
    
-    Disable-GameDVR
+    Disable-GameDVRXboxServices
     
     
     Disable-ApplicationsRunningInBackground
@@ -1638,11 +1537,14 @@ Try
 
     
     Remove-BuiltInPrinters
-
    
     Set-HomeLocation
 
-    
+
+
+#region  DisableWindowsServices
+
+    <#
     Disable-WindowsService -Service @(
       'diagnosticshub.standardcollector.service' # Microsoft Diagnostics Hub Standard Collector Service
       'DiagTrack'                                # Diagnostics Tracking Service
@@ -1655,9 +1557,6 @@ Try
       'SharedAccess'                             # Internet Connection Sharing (ICS)
       'WbioSrvc'                                 # Windows Biometric Service
       'WMPNetworkSvc'                            # Windows Media Player Network Sharing Service
-      'XblAuthManager'                           # Xbox Live Auth Manager
-      'XblGameSave'                              # Xbox Live Game Save Service
-      'XboxNetApiSvc'                            # Xbox Live Networking Service
       'TrkWks'                                   # Distributed Link Tracking Client. Description: Maintains links between NTFS files within a computer or across computers in a network.
       'AdobeFlashPlayerUpdateSvc'                # Adobe flash player updater
       'RemoteAccess'                             # Routing and Remote Access
@@ -1670,55 +1569,47 @@ Try
       'MessagingService'
       'wercplsupport'
       'PcaSvc'
-      'wlidsvc'
+      'ClipSVC'                                  # Needed for Microsoft Store
       'wisvc'
       'RetailDemo'
       'diagsvc'
       'shpamsvc' 
       'TroubleshootingSvc'
     )
+    #>
 
+
+    #'wlidsvc' # Change to startup on demand windows live sign in assistant can break windows live games etc..
     Disable-BeepService
+
+#endregion
       
-    
+
+
+#region RemoveBuiltinWindowsApplications
+
     Remove-BuiltinWindowsApplications -apps @(
-      'Microsoft.Windows.CloudExperienceHost'
-      'Microsoft.Windows.ShellExperienceHost'
-      'Microsoft.AAD.BrokerPlugin'
-      'Microsoft.Windows.Cortana'
-      'Microsoft.Appconnector'
-      'Microsoft.Messaging'
-      'Microsoft.Windows.Apprep.ChxApp'
-      'Microsoft.Windows.AssignedAccessLockApp'
-      'Microsoft.Windows.ContentDeliveryManager'
-      'Microsoft.Windows.ParentalControls'
-      'Microsoft.Windows.SecondaryTileExperience'
-      'Microsoft.Windows.SecureAssessmentBrowser'
-      'Microsoft.AccountsControl'
-      'Microsoft.LockApp'
-      'Microsoft.MicrosoftEdge'
-      'Microsoft.PPIProjection'
-      'Windows.PrintDialog'
-      'Microsoft.StorePurchaseApp'
-      'Microsoft.NET.Native.Runtime.1.3'
-      'Microsoft.NET.Native.Runtime.1.1'
-      'Microsoft.NET.Native.Framework.1.3' 
-      'Microsoft.NET.Native.Runtime.1.4' 
-      'Microsoft.VCLibs.140.00' 
-      'Microsoft.VCLibs.120.00' 
-      'Microsoft.BingTranslator' 
-      'Microsoft.DesktopAppInstaller'
-      'Microsoft.MicrosoftStickyNotes'
-      'Microsoft.BingWeather'
-      'Microsoft.WindowsMaps'
-      'Microsoft.WindowsSoundRecorder'
-      'Microsoft.Windows.Photos'
-      'Microsoft.WindowsStore'
-      'Microsoft.WindowsAlarms'
-      'microsoft.WindowsCommunicationsApps'
-      'Microsoft.WindowsCalculator'
+    'Microsoft.FreshPaint'
+    'Microsoft.MicrosoftStickyNotes'
+    'Microsoft.OneConnect'
+    'Microsoft.Windows.Photos'
+    'Microsoft.WindowsCalculator'
+    'Microsoft.WindowsStore'
+    'Microsoft.MSPaint'
+    # apps which other apps depend on
+    'Microsoft.Advertising.Xaml'
     )
 
+
+    $null = Get-WindowsPackage -Online | Where-Object PackageName -like *QuickAssist* -ErrorAction SilentlyContinue | Remove-WindowsPackage -Online -NoRestart -ErrorAction SilentlyContinue
+    $null = Get-WindowsPackage -Online | Where-Object PackageName -like *Hello-Face* -ErrorAction SilentlyContinue | Remove-WindowsPackage -Online -NoRestart -ErrorAction SilentlyContinue
+    $null = Get-WindowsPackage -Online | Where-Object PackageName -like *MediaPlayer* -ErrorAction SilentlyContinue | Remove-WindowsPackage -Online -NoRestart -ErrorAction SilentlyContinue
+    $null = Get-WindowsPackage -Online | Where-Object PackageName -like *MathRecognizer* -ErrorAction SilentlyContinue | Remove-WindowsPackage -Online -NoRestart -ErrorAction SilentlyContinue
+    $null = Get-WindowsPackage -Online | Where-Object PackageName -like *OneCoreUAP.OneSync* -ErrorAction SilentlyContinue | Remove-WindowsPackage -Online -NoRestart -ErrorAction SilentlyContinue
+   
+
+#endregion
+#region DisableScheduledTasks
    
     Disable-ScheduledTasks -TaskName @(
       'Microsoft\Windows\AppID\SmartScreenSpecific'
@@ -1768,7 +1659,6 @@ Try
       'Adobe Flash Player Updater' # Adobe Flash Player update task
       'Adobe Acrobat Update Task' # Adobe Reader update task
       'NVIDIA GeForce Experience SelfUpdate_{B2FE1952-0186-46C3-BAEC-A80AA35AC5B8}' # GeForce Experience Self Update
-      'Microsoft\XblGameSaveTask\XblGameSaveTask' 
       'Microsoft\Windows\WCM\WiFiTask'
       'Microsoft\Windows\Work Folders\Work Folders Logon Synchronization'
       'Microsoft\Windows\Work Folders\Work Folders Maintenance Work'
@@ -1789,10 +1679,14 @@ Try
       '\Microsoft\Windows\Maps\MapsToastTask'
       '\Microsoft\Windows\HelloFace\FODCleanupTask'
     )
+    
 
     Takeown-Folder -Path "$env:SystemDrive:\Windows\System32\Tasks\Microsoft\Windows\SettingSync\"
     Remove-Item -Path "$env:SystemDrive:\Windows\System32\Tasks\Microsoft\Windows\SettingSync\" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
-	
+
+
+#endregion
+
     # Adjusts visual effects for performance - Disables animations, transparency etc. but leaves font smoothing and full window dragging enabled
     $registerKeys += @(
       @{
@@ -2095,7 +1989,6 @@ Try
         Description = 'Restrict Windows Update Peer to Peer only to local network'
       }
     )
-
     $registerKeys += @(
       @{
         Key         = 'HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\Windows\HomeGroup'
@@ -2104,7 +1997,6 @@ Try
         Description = 'Disable Homegroup'
       }
     )
-
     $registerKeys += @(
       @{
         Key         = 'HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\Windows NT\CurrentVersion\Software Protection Platform'
@@ -2113,8 +2005,6 @@ Try
         Description = 'Disable Windows license check on startup'
       }
     )
-    
-    
     $registerKeys += @(
       @{
         Key         = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management'
@@ -2129,14 +2019,37 @@ Try
         Description = 'Disable Spectre and Meltdown mitigations'
       }
     )
+
+    $registerKeys += @(
+      @{
+        Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\CompatTelRunner.exe'
+        Name        = 'Debugger'
+        Value       = '%windir%\\system32\\taskkill.exe'
+        Description = 'Disable compatibility telemetry'
+      }
+
+      @{
+        Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\DeviceCensus.exe'
+        Name        = 'Debugger'
+        Value       = '%windir%\\system32\\taskkill.exe'
+        Description = 'Disable gathering information about your PC to target builds through Windows Update'
+      }
+    )
     
     Set-RegistryValues -registerKeys $registerKeys
     
+#endregion
+
     ##*===============================================
     ##* POST-INSTALLATION
     ##*===============================================
     [string]$installPhase = 'Post-Installation'
-		
+
+
+    taskkill.exe /F /IM 'explorer.exe'
+    Start-Process -FilePath 'explorer.exe'
+
+		# Congratulations! Your copy of Windows 10 is now Debotnetted!
     Show-InstallationRestartPrompt -CountdownSeconds 600
   }
   ElseIf ($DeploymentType -ieq 'Uninstall')

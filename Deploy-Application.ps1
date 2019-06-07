@@ -1,4 +1,35 @@
-﻿[CmdletBinding()]
+﻿# .NOTES
+#
+# BIOS Tweaks
+#
+# Disable Intel Software Guard Extensions (SGX), there is no benefit using it and it slightly affects the CPU performance (if used).
+# CPU/PCI-E Clock Drive, CPU/MCH Clock Skew: keep them to the lowest possible (lower is better)!
+#
+# nVidia Driver update procedure
+# Download the latest official driver or debloat driver.
+# Download/use DDU under Windows safe mode and then restart the PC after the cleaning is done.
+# Install the new driver and then restart your PC.
+# (optional) Activate MSI mode and restart your PC. MSI Mode needs to be set again after each new driver change!
+# (optional) Configure via nVidia Inspector e.g. 3D Global settings (keep in mind you can import/export those settings!), MAXPRERENDER FPS = 1 + Anisotropic Filtering Sample Optimization ON, Texture filtering Quality = High Performance + Power management mode = Prefer Max Performance
+# Configure 3D Game profile settings according to your own needs. E.g. Fast sync on for R6 Siege with an 120fps limiter for consistent and tear free gameplay.
+# Use Intelligent standby list cleaner (ISLC), Timer Resolution or Timer Tool and set the value to 0.499ms (0.50ms) in order to reduce the overall latency. ISLC is more the all-in-one solution from the mentioned programs.
+# Make your own game profiles and put the fps limiters for your games using RivaTuner Statistics Server (RTSS) provided along with MSI Afterburner according to your systems GFX and CPU power.
+# Evaluate your settings per game by testing each title you play so you can make further adjustments in case something is not working properly!
+# (optional) Set SILK Smoothness to OFF for multiplayer FPS Shooters only, which might improve it's responsiveness.
+# Set Power management to Adaptive.
+# Always uninstall the NVIDA HD Audio Driver and Disable all unused Audio devices
+#
+# Network Tweaks
+# https://github.com/CHEF-KOCH/GamingTweaks/tree/master/Network
+#
+#
+# Clean old device drivers
+# .\DeviceCleanupCmd.exe DeviceCleanupCmd * -m:1d -s 
+#
+
+
+
+[CmdletBinding()]
 Param (
   [Parameter(Mandatory = $false)]
   [ValidateSet('Install','Uninstall')]
@@ -25,7 +56,7 @@ Try
   {
 
   }
-	
+
   ##*===============================================
   ##* VARIABLE DECLARATION
   ##*===============================================
@@ -138,7 +169,6 @@ Try
         Install-ChocolateyPackage -Package @(
         'vcredist-all'
         'winscp'
-        'ussf'
         'ffmpeg'
         'sudo'
         'googlechrome'
@@ -150,30 +180,29 @@ Try
         'chocolatey-visualstudio.extension'
         'chocolatey-windowsupdate.extension'
         'cpu-z.install'
+        'gpu-z'
         'discord'
         'ffmpeg'
         #'geforce-game-ready-driver-win10'
         'git.install'
-        'gpu-z'
         'grepwin'
         'irfanviewplugins'
         'irfanview'
         'k-litecodecpackfull'
-        #'kodi'
-        'nircmd'
+        'kodi'
         'notepadplusplus.install'
-        #'Office365ProPlus'
-        #'PSWindowsUpdate'
+        'Office365ProPlus'
+        'PSWindowsUpdate'
         'putty.install'
-        'pycharm-community'
-        'python2'
-        #'qbittorrent'
-        #'ipfilter-updater'
-        #'rsat'
-        #'Shotcut'
-        #'sysinternals'
-        #'WhatsApp'
-        #'youtube-dl'
+        #'pycharm-community'
+        #'python2'
+        'qbittorrent'
+        'ipfilter-updater'
+        'rsat'
+        'sysinternals'
+        'WhatsApp'
+        'youtube-dl'
+        'winmtr-redux'
         )
 
     #>
@@ -217,9 +246,8 @@ Try
       IconLocation     = 'shell32.dll, 88'
       Description      = 'Network Connections'
       WorkingDirectory = $null
-      Destination      = Join-Path -Path  $env:USERPROFILE -ChildPath 'Desktop'
+      Path             = Join-Path -Path  $env:USERPROFILE -ChildPath 'Desktop'
     }
-
     New-Shortcut @NetworkConnection
 
     
@@ -230,7 +258,7 @@ Try
       IconLocation     = 'shell32.dll, 207'
       Description      = 'Control Panel'
       WorkingDirectory = $null
-      Destination      = Join-Path -Path  $env:USERPROFILE -ChildPath 'Desktop'
+      Path      = Join-Path -Path  $env:USERPROFILE -ChildPath 'Desktop'
     }
     New-Shortcut @ControlPanel
     
@@ -1210,77 +1238,66 @@ Try
         Value       = 2
         Description = 'App Privacy Calendar'
       }
-
       @{
         Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\AppPrivacy'
         Name        = 'LetAppsAccessCallHistory'
         Value       = 2
         Description = 'App Privacy Call History'
       }
-
       @{
         Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\AppPrivacy'
         Name        = 'LetAppsAccessCamera'
         Value       = 2
         Description = 'App Privacy Camera'
       }
-
       @{
         Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\AppPrivacy'
         Name        = 'LetAppsAccessContacts'
         Value       = 2
         Description = 'App Privacy Contacts'
       }
-
       @{
         Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\AppPrivacy'
         Name        = 'LetAppsAccessEmail'
         Value       = 2
         Description = 'App Privacy Email'
       }
-
       @{
         Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\AppPrivacy'
         Name        = 'LetAppsAccessLocation'
         Value       = 2
         Description = 'App Privacy Location'
       }
-
       @{
         Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\AppPrivacy'
         Name        = 'LetAppsAccessMessaging'
         Value       = 2
         Description = 'App Privacy Messaging'
       }
-
       @{
         Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\AppPrivacy'
         Name        = 'LetAppsAccessMotion'
         Value       = 2
         Description = 'App Privacy Motion'
       }
-
       @{
         Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\AppPrivacy'
         Name        = 'LetAppsAccessNotifications'
         Value       = 2
         Description = 'App Privacy Notifications'
       }
-
       @{
         Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\AppPrivacy'
         Name        = 'LetAppsAccessPhone'
         Value       = 2
         Description = 'App Privacy Make Phone Calls'
       }
-
       @{
         Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\AppPrivacy'
         Name        = 'LetAppsAccessRadios'
         Value       = 2
         Description = 'App Privacy Radios'
       }
-
       @{
         Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\AppPrivacy'
         Name        = 'LetAppsAccessTrustedDevices'
@@ -1294,14 +1311,12 @@ Try
         Value       = 2
         Description = 'App Privacy	Sync with devices'
       }
-	
       @{
         Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\AppCompat'
         Name        = 'AITEnable'
         Value       = 0
         Description = 'Application compatibility turn off Application Telemetry'
       }
-	
       @{
         Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\AppCompat'
         Name        = 'DisableInventory'
@@ -1332,7 +1347,6 @@ Try
         Value       = 1
         Description = 'Disable Windows Spotlight Features'
       }
-
       @{
         Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\CloudContent'
         Name        = 'DisableWindowsConsumerFeatures'
@@ -1515,34 +1529,25 @@ Try
     # Performance and Optimization
     #
     ##*===============================================
-
-    
+        
     Set-WindowsPowerPlan -HighPerformance
-
-   
+       
     Disable-GameDVRXboxServices
-    
-    
+        
     Disable-ApplicationsRunningInBackground
-
-
+    
     Disable-8dot3FileNames
-
-
+    
     Set-DEPOptOut
-
-   
+       
     Disable-WindowsDefender 
-
-    
+        
     Uninstall-OneDrive
-
-    
+        
     Remove-BuiltInPrinters
    
     Set-HomeLocation
-
-
+    
 
 #region  DisableWindowsServices
 
@@ -1585,8 +1590,6 @@ Try
     Disable-BeepService
 
 #endregion
-      
-
 
 #region RemoveBuiltinWindowsApplications
 
@@ -1682,10 +1685,8 @@ Try
       '\Microsoft\Windows\HelloFace\FODCleanupTask'
     )
     
-
     Takeown-Folder -Path "$env:SystemDrive:\Windows\System32\Tasks\Microsoft\Windows\SettingSync\"
     Remove-Item -Path "$env:SystemDrive:\Windows\System32\Tasks\Microsoft\Windows\SettingSync\" -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
-
 
 #endregion
 
@@ -1769,18 +1770,6 @@ Try
         Name        = 'AutoUpdateEnabled'
         Value       = 0
         Description = 'Disabling automatic map updates'
-      }
-      @{
-        Key         = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management\PrefetchParameters'
-        Name        = 'EnablePrefetcher'
-        Value       = 0
-        Description = 'Disable Prefetch'
-      }
-      @{
-        Key         = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management\PrefetchParameters'
-        Name        = 'EnableSuperfetch'
-        Value       = 0
-        Description = 'Disable Superfetch'
       }
       @{
         Key         = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management\PrefetchParameters'
@@ -2007,6 +1996,7 @@ Try
         Description = 'Disable Windows license check on startup'
       }
     )
+    <# Not Needed on 1903 with Retpoline patch
     $registerKeys += @(
       @{
         Key         = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management'
@@ -2021,6 +2011,7 @@ Try
         Description = 'Disable Spectre and Meltdown mitigations'
       }
     )
+    #>
 
     $registerKeys += @(
       @{

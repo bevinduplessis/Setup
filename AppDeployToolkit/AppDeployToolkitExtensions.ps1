@@ -257,54 +257,6 @@ Function Set-RegistryValues
     Write-FunctionHeaderOrFooter -CmdletName $CmdletName -Footer
   }
 }
-
-
-
-Function New-Shortcut
-{
-  [CmdletBinding()]
-  Param(
-    [string]$Name,
-    [string]$TargetPath,
-    [string]$Arguments,
-    [string]$WorkingDirectory,
-    [string]$IconLocation,
-    [string]$Description,
-    [string]$Destination
-  )
-  
-  Begin {
-    [string]$CmdletName = $PSCmdlet.MyInvocation.MyCommand.Name
-    Write-FunctionHeaderOrFooter -CmdletName $CmdletName -CmdletBoundParameters $PSBoundParameters -Header
-  }
-  
-  Process {
-
-    if(Test-Path -Path "$env:USERPROFILE\Desktop\$Name") 
-    {
-      Remove-Item -Path "$env:USERPROFILE\Desktop\$Name" -Force
-    }
-  
-    $ShortcutPath = Join-Path -Path $Destination -ChildPath $Name
-  
-    $Shell = New-Object -ComObject ('WScript.Shell')
-    $ShortCut = $Shell.CreateShortcut($ShortcutPath)
-    $ShortCut.TargetPath = $TargetPath
-    $ShortCut.Arguments = $Arguments
-    $ShortCut.WorkingDirectory = $WorkingDirectory
-    $ShortCut.WindowStyle = 1
-    $ShortCut.Hotkey = ''
-    $ShortCut.IconLocation = $IconLocation
-    $ShortCut.Description = $Description
-    $ShortCut.Save()
-
-  }
-  
-  End {
-    Write-FunctionHeaderOrFooter -CmdletName $CmdletName -Footer
-  }
-}
-
 Function Get-VirtualPrinter
 {
   Param

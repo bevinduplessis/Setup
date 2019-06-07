@@ -692,12 +692,14 @@ Function Invoke-AddWindowsCapability
 
 Function Setup-SSHServer {
 
+Show-InstallationProgress  -StatusMessage  'Starting SSH Server'
 Start-Service sshd
-# OPTIONAL but recommended:
+
+Show-InstallationProgress  -StatusMessage  'Setting SSH Server to start automatically'
 Set-Service -Name sshd -StartupType 'Automatic'
-# Confirm the Firewall rule is configured. It should be created automatically by setup. 
+
+Show-InstallationProgress  -StatusMessage  'Allowing SSH connection through the windows firewall'
 Get-NetFirewallRule -Name *ssh*
-# There should be a firewall rule named "OpenSSH-Server-In-TCP", which should be enabled 
 
 }
 

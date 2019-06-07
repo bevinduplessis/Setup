@@ -240,25 +240,23 @@ Try
 
 
     $NetworkConnection = @{
-      Name             = 'Network Connections.lnk'
       TargetPath       = 'explorer.exe'
       Arguments        = '::{7007ACC7-3202-11D1-AAD2-00805FC1270E}'
       IconLocation     = 'shell32.dll, 88'
       Description      = 'Network Connections'
-      WorkingDirectory = $null
-      Path             = Join-Path -Path  $env:USERPROFILE -ChildPath 'Desktop'
+      WorkingDirectory = "$env:windir"
+      Path             = "$(Join-Path -Path  $env:USERPROFILE -ChildPath 'Desktop')\Network Connections.lnk"
     }
     New-Shortcut @NetworkConnection
 
     
     $ControlPanel = @{
-      Name             = 'Control Panel.lnk'
       TargetPath       = 'RunDll32.exe '
       Arguments        = 'shell32.dll,Control_RunDLL'
       IconLocation     = 'shell32.dll, 207'
       Description      = 'Control Panel'
-      WorkingDirectory = $null
-      Path      = Join-Path -Path  $env:USERPROFILE -ChildPath 'Desktop'
+      WorkingDirectory = "$env:windir"
+      Path             = "$(Join-Path -Path  $env:USERPROFILE -ChildPath 'Desktop')\Control Panel.lnk"
     }
     New-Shortcut @ControlPanel
     

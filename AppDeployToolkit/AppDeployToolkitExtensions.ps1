@@ -950,14 +950,13 @@ Function Install-ISLC
     if(Test-Path -Path "$($env:ProgramW6432)\ISLC v1.0.1.1\Intelligent standby list cleaner ISLC.exe")
     {
 
-    $ISLC = @{
-      Name             = 'ISLC.lnk'
+     $ISLC = @{
       TargetPath       = "$($env:ProgramW6432)\ISLC v1.0.1.1\Intelligent standby list cleaner ISLC.exe"
       Arguments        = $null
       IconLocation     = "$($env:ProgramW6432)\ISLC v1.0.1.1\Intelligent standby list cleaner ISLC.exe"
       Description      = 'Intelligent standby list cleaner'
-      WorkingDirectory = $null
-      Destination      = "$env:ProgramData\Microsoft\Windows\Start Menu\Programs\StartUp"
+      WorkingDirectory = "$($env:ProgramW6432)\ISLC v1.0.1.1"
+      Path             = "$env:ProgramData\Microsoft\Windows\Start Menu\Programs\StartUp\ISLC.lnk"
     }
     New-Shortcut @ISLC
 

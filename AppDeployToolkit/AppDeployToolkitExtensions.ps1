@@ -635,7 +635,7 @@ Function Invoke-AddWindowsFeatures
     {
       if((Get-WindowsOptionalFeature -Online -FeatureName $f -ErrorAction SilentlyContinue).State -eq 'Disabled')
       {
-        Write-Log -Message "Adding Windows feature '$f'" -Source $CmdletName
+        Show-InstallationProgress -StatusMessage "Adding Windows feature '$f'"
         Try 
         {
           Enable-WindowsOptionalFeature -Online -FeatureName $f -All -NoRestart -Source "$PSScriptRoot\Includes\Sources\sxs" -ErrorAction Stop
@@ -645,6 +645,44 @@ Function Invoke-AddWindowsFeatures
           Write-Log -Message "Unable to add windows feature '$f'" -Severity 2 -Source $CmdletName
         }
       }
+
+    }
+  }
+  End {
+    Write-FunctionHeaderOrFooter -CmdletName $CmdletName -Footer
+  }
+}
+Function Invoke-AddWindowsCapability
+{
+  [CmdletBinding()]
+  param
+  (
+    [string[]]$Capabilities
+  )
+
+  Begin {
+    [string]$CmdletName = $PSCmdlet.MyInvocation.MyCommand.Name
+    Write-FunctionHeaderOrFooter -CmdletName $CmdletName -CmdletBoundParameters $PSBoundParameters -Header
+  }
+
+  Process 
+  {
+    Foreach ($Capability in $Capabilities) 
+    {
+      if((Get-WindowsCapability -Online -Name $Capability -ErrorAction SilentlyContinue).State -eq 'NotPresent')
+      {
+
+      Show-InstallationProgress -StatusMessage "Adding Windows Capability '$Capability'"
+
+        Try 
+        {
+          Add-WindowsCapability -Online -Name $Capability -ErrorAction Stop
+        }
+        Catch
+        {
+          Write-Log -Message "Unable to add windows Capability '$Capability'" -Severity 2 -Source $CmdletName
+        }
+      }
     }
   }
   End {
@@ -652,6 +690,16 @@ Function Invoke-AddWindowsFeatures
   }
 }
 
+Function Setup-SSHServer {
+
+Start-Service sshd
+# OPTIONAL but recommended:
+Set-Service -Name sshd -StartupType 'Automatic'
+# Confirm the Firewall rule is configured. It should be created automatically by setup. 
+Get-NetFirewallRule -Name *ssh*
+# There should be a firewall rule named "OpenSSH-Server-In-TCP", which should be enabled 
+
+}
 
 Function Disable-ScheduledTasks
 {
@@ -945,17 +993,19 @@ Function Install-ISLC
       Write-Error -Message "Unable to download ISLC `n$(Resolve-Error)"
     }
 
-    Start-Process -FilePath "$(Get-Temp)\ISLC.exe" -ArgumentList "-y -o$([char]34)$($env:ProgramW6432)$([char]34)"
-     
+    Start-Process -FilePath "$(Get-Temp)\ISLC.exe" -ArgumentList "-y -o$([char]34)$($env:ProgramW6432)$([char]34)" -Wait
+    
+    While(!(Test-Path -Path "$($env:ProgramW6432)\ISLC v1.0.1.1\Intelligent standby list cleaner ISLC.exe")) 
+    {
+      Start-Sleep -Seconds 1
+    }
+
     if(Test-Path -Path "$($env:ProgramW6432)\ISLC v1.0.1.1\Intelligent standby list cleaner ISLC.exe")
     {
-
      $ISLC = @{
       TargetPath       = "$($env:ProgramW6432)\ISLC v1.0.1.1\Intelligent standby list cleaner ISLC.exe"
-      Arguments        = $null
       IconLocation     = "$($env:ProgramW6432)\ISLC v1.0.1.1\Intelligent standby list cleaner ISLC.exe"
       Description      = 'Intelligent standby list cleaner'
-      WorkingDirectory = "$($env:ProgramW6432)\ISLC v1.0.1.1"
       Path             = "$env:ProgramData\Microsoft\Windows\Start Menu\Programs\StartUp\ISLC.lnk"
     }
     New-Shortcut @ISLC
@@ -1042,6 +1092,24 @@ Function Remove-BuiltinWindowsApplications
   End {
     Write-FunctionHeaderOrFooter -CmdletName $CmdletName -Footer
   }
+}
+
+Function Remove-AddtionalBuiltinWindowsApplications {
+
+    if(Test-Path -Path "$(Split-Path -parent $PSScriptRoot)\Includes\install_wim_tweak.exe") 
+    {
+      $null = & "$(Split-Path -parent $PSScriptRoot)\Includes\install_wim_tweak.exe" /o /c Microsoft-PPIProjection-Package /r
+    }
+    else
+    {
+      Write-Warning -Message "install_wim_tweak.exe not found in $(Split-Path -parent $PSScriptRoot)\\Includes"
+    }
+
+    $null = Get-WindowsPackage -Online | Where-Object PackageName -like *QuickAssist* -ErrorAction SilentlyContinue | Remove-WindowsPackage -Online -NoRestart -ErrorAction SilentlyContinue
+    $null = Get-WindowsPackage -Online | Where-Object PackageName -like *Hello-Face* -ErrorAction SilentlyContinue | Remove-WindowsPackage -Online -NoRestart -ErrorAction SilentlyContinue
+    $null = Get-WindowsPackage -Online | Where-Object PackageName -like *MediaPlayer* -ErrorAction SilentlyContinue | Remove-WindowsPackage -Online -NoRestart -ErrorAction SilentlyContinue
+    $null = Get-WindowsPackage -Online | Where-Object PackageName -like *MathRecognizer* -ErrorAction SilentlyContinue | Remove-WindowsPackage -Online -NoRestart -ErrorAction SilentlyContinue
+    $null = Get-WindowsPackage -Online | Where-Object PackageName -like *OneCoreUAP.OneSync* -ErrorAction SilentlyContinue | Remove-WindowsPackage -Online -NoRestart -ErrorAction SilentlyContinue
 }
 
 Function Disable-WindowsDefender 
@@ -1154,6 +1222,8 @@ Function Disable-WindowsDefender
     if(Test-Path -Path "$(Split-Path -parent $PSScriptRoot)\Includes\install_wim_tweak.exe") 
     {
       $null = & "$(Split-Path -parent $PSScriptRoot)\Includes\install_wim_tweak.exe" /o /c Windows-Defender /r
+      
+      
     }
     else
     {

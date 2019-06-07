@@ -168,34 +168,24 @@ Try
         Show-InstallationProgress -StatusMessage 'Installing Chocolatey Packages'
         Install-ChocolateyPackage -Package @(
         'vcredist-all'
-        'winscp'
+        'geekuninstaller'
         'ffmpeg'
         'sudo'
         'googlechrome'
         'directx'
         '7zip.install'
         'ccleaner'
-        'chocolatey-core.extension'
-        'chocolatey-uninstall.extension'
-        'chocolatey-visualstudio.extension'
-        'chocolatey-windowsupdate.extension'
         'cpu-z.install'
         'gpu-z'
         'discord'
-        'ffmpeg'
-        #'geforce-game-ready-driver-win10'
         'git.install'
         'grepwin'
         'irfanviewplugins'
         'irfanview'
         'k-litecodecpackfull'
-        'kodi'
         'notepadplusplus.install'
-        'Office365ProPlus'
         'PSWindowsUpdate'
         'putty.install'
-        #'pycharm-community'
-        #'python2'
         'qbittorrent'
         'ipfilter-updater'
         'rsat'
@@ -203,6 +193,11 @@ Try
         'WhatsApp'
         'youtube-dl'
         'winmtr-redux'
+        #'geforce-game-ready-driver-win10'
+        #'pycharm-community'
+        #'python2'
+        #'Office365ProPlus'
+        #'kodi'
         )
 
     #>
@@ -264,6 +259,13 @@ Try
     Invoke-AddWindowsFeatures -feature @(
       'NetFx3'
     )
+
+    Invoke-AddWindowsCapability -Capabilities @(
+      'OpenSSH.Client~~~~0.0.1.0'
+      'OpenSSH.Server~~~~0.0.1.0'
+    )
+
+    Setup-SSHServer
 
     # Disable other windows annoyances
     $registerKeys += @(
@@ -1593,8 +1595,6 @@ Try
 
     Remove-BuiltinWindowsApplications -apps @(
     'Microsoft.FreshPaint'
-    'Microsoft.MicrosoftStickyNotes'
-    'Microsoft.OneConnect'
     'Microsoft.Windows.Photos'
     'Microsoft.WindowsCalculator'
     'Microsoft.WindowsStore'
@@ -1603,13 +1603,7 @@ Try
     'Microsoft.Advertising.Xaml'
     )
 
-
-    $null = Get-WindowsPackage -Online | Where-Object PackageName -like *QuickAssist* -ErrorAction SilentlyContinue | Remove-WindowsPackage -Online -NoRestart -ErrorAction SilentlyContinue
-    $null = Get-WindowsPackage -Online | Where-Object PackageName -like *Hello-Face* -ErrorAction SilentlyContinue | Remove-WindowsPackage -Online -NoRestart -ErrorAction SilentlyContinue
-    $null = Get-WindowsPackage -Online | Where-Object PackageName -like *MediaPlayer* -ErrorAction SilentlyContinue | Remove-WindowsPackage -Online -NoRestart -ErrorAction SilentlyContinue
-    $null = Get-WindowsPackage -Online | Where-Object PackageName -like *MathRecognizer* -ErrorAction SilentlyContinue | Remove-WindowsPackage -Online -NoRestart -ErrorAction SilentlyContinue
-    $null = Get-WindowsPackage -Online | Where-Object PackageName -like *OneCoreUAP.OneSync* -ErrorAction SilentlyContinue | Remove-WindowsPackage -Online -NoRestart -ErrorAction SilentlyContinue
-   
+    Remove-AddtionalBuiltinWindowsApplications
 
 #endregion
 #region DisableScheduledTasks
@@ -1655,32 +1649,27 @@ Try
       'Microsoft\Office\OfficeTelemetryAgentLogOn'
       'Microsoft\Windows\Feedback\Siuf\DmClient'
       'Microsoft\Windows\Mobile Broadband Accounts\MNO Metadata Parser'
-      '\NvTmMon_{B2FE1952-0186-46C3-BAEC-A80AA35AC5B8}' # Nvidia Telemetry
-      '\NvTmRep_{B2FE1952-0186-46C3-BAEC-A80AA35AC5B8' # Nvidia Telemetry
-      '\NvTmRepOnLogon_{B2FE1952-0186-46C3-BAEC-A80AA35AC5B8}'# Nvidia Telemetry
-      'NvDriverUpdateCheckDaily_{B2FE1952-0186-46C3-BAEC-A80AA35AC5B8}' # NVIDIA display driver daily update checks
       'Adobe Flash Player Updater' # Adobe Flash Player update task
       'Adobe Acrobat Update Task' # Adobe Reader update task
-      'NVIDIA GeForce Experience SelfUpdate_{B2FE1952-0186-46C3-BAEC-A80AA35AC5B8}' # GeForce Experience Self Update
       'Microsoft\Windows\WCM\WiFiTask'
       'Microsoft\Windows\Work Folders\Work Folders Logon Synchronization'
       'Microsoft\Windows\Work Folders\Work Folders Maintenance Work'
       'Microsoft\Windows\Active Directory Rights Management Services Client\AD RMS Rights Policy Template Management (Manual)'
       'Microsoft\Windows\BitLocker\BitLocker Encrypt All Drives'
       'Microsoft\Windows\BitLocker\BitLocker MDM policy Refresh'
-      '\Microsoft\Windows\Diagnosis\RecommendedTroubleshootingScanner'
-      '\Microsoft\Windows\Bluetooth\UninstallDeviceTask'
-      '\Microsoft\Windows\Power Efficiency Diagnostics\AnalyzeSystem'
-      '\Microsoft\Windows\Shell\FamilySafetyMonitor'
-      '\Microsoft\Windows\Shell\FamilySafetyRefreshTask'
-      '\Microsoft\Windows\TPM\Tpm-HASCertRetr'
-      '\Microsoft\Windows\TPM\Tpm-Maintenance'
-      '\Microsoft\Windows\SoftwareProtectionPlatform\SvcRestartTask'
-      '\Microsoft\Windows\SoftwareProtectionPlatform\SvcRestartTaskLogon'
-      '\Microsoft\Windows\SoftwareProtectionPlatform\SvcRestartTaskNetwork'
-      '\Microsoft\Windows\NlaSvc\WiFiTask'
-      '\Microsoft\Windows\Maps\MapsToastTask'
-      '\Microsoft\Windows\HelloFace\FODCleanupTask'
+      'Microsoft\Windows\Diagnosis\RecommendedTroubleshootingScanner'
+      'Microsoft\Windows\Bluetooth\UninstallDeviceTask'
+      'Microsoft\Windows\Power Efficiency Diagnostics\AnalyzeSystem'
+      'Microsoft\Windows\Shell\FamilySafetyMonitor'
+      'Microsoft\Windows\Shell\FamilySafetyRefreshTask'
+      'Microsoft\Windows\TPM\Tpm-HASCertRetr'
+      'Microsoft\Windows\TPM\Tpm-Maintenance'
+      'Microsoft\Windows\SoftwareProtectionPlatform\SvcRestartTask'
+      'Microsoft\Windows\SoftwareProtectionPlatform\SvcRestartTaskLogon'
+      'Microsoft\Windows\SoftwareProtectionPlatform\SvcRestartTaskNetwork'
+      'Microsoft\Windows\NlaSvc\WiFiTask'
+      'Microsoft\Windows\Maps\MapsToastTask'
+      'Microsoft\Windows\HelloFace\FODCleanupTask'
     )
     
     Takeown-Folder -Path "$env:SystemDrive:\Windows\System32\Tasks\Microsoft\Windows\SettingSync\"

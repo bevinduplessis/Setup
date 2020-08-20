@@ -1,34 +1,3 @@
-﻿# .NOTES
-#
-# BIOS Tweaks
-#
-# Disable Intel Software Guard Extensions (SGX), there is no benefit using it and it slightly affects the CPU performance (if used).
-# CPU/PCI-E Clock Drive, CPU/MCH Clock Skew: keep them to the lowest possible (lower is better)!
-#
-# nVidia Driver update procedure
-# Download the latest official driver or debloat driver.
-# Download/use DDU under Windows safe mode and then restart the PC after the cleaning is done.
-# Install the new driver and then restart your PC.
-# (optional) Activate MSI mode and restart your PC. MSI Mode needs to be set again after each new driver change!
-# (optional) Configure via nVidia Inspector e.g. 3D Global settings (keep in mind you can import/export those settings!), MAXPRERENDER FPS = 1 + Anisotropic Filtering Sample Optimization ON, Texture filtering Quality = High Performance + Power management mode = Prefer Max Performance
-# Configure 3D Game profile settings according to your own needs. E.g. Fast sync on for R6 Siege with an 120fps limiter for consistent and tear free gameplay.
-# Use Intelligent standby list cleaner (ISLC), Timer Resolution or Timer Tool and set the value to 0.499ms (0.50ms) in order to reduce the overall latency. ISLC is more the all-in-one solution from the mentioned programs.
-# Make your own game profiles and put the fps limiters for your games using RivaTuner Statistics Server (RTSS) provided along with MSI Afterburner according to your systems GFX and CPU power.
-# Evaluate your settings per game by testing each title you play so you can make further adjustments in case something is not working properly!
-# (optional) Set SILK Smoothness to OFF for multiplayer FPS Shooters only, which might improve it's responsiveness.
-# Set Power management to Adaptive.
-# Always uninstall the NVIDA HD Audio Driver and Disable all unused Audio devices
-#
-# Network Tweaks
-# https://github.com/CHEF-KOCH/GamingTweaks/tree/master/Network
-#
-#
-# Clean old device drivers
-# .\DeviceCleanupCmd.exe DeviceCleanupCmd * -m:1d -s 
-#
-
-
-
 [CmdletBinding()]
 Param (
   [Parameter(Mandatory = $false)]
@@ -146,8 +115,7 @@ Try
     ##* PRE-INSTALLATION
     ##*===============================================
     [string]$installPhase = 'Pre-Installation'
-
-    
+   
     do 
     {
 
@@ -168,7 +136,6 @@ Try
         Show-InstallationProgress -StatusMessage 'Installing Chocolatey Packages'
         Install-ChocolateyPackage -Package @(
         'vcredist-all'
-        'geekuninstaller'
         'ffmpeg'
         'sudo'
         'googlechrome'
@@ -190,16 +157,13 @@ Try
         'ipfilter-updater'
         'rsat'
         'sysinternals'
-        'WhatsApp'
         'youtube-dl'
         'winmtr-redux'
-        #'geforce-game-ready-driver-win10'
-        #'pycharm-community'
-        #'python2'
-        #'Office365ProPlus'
-        #'kodi'
+        'pycharm-community'
+        'python2'
+        'Office365ProPlus'
+        'kodi'
         )
-
     #>
 
     
@@ -231,9 +195,6 @@ Try
     Unpin-App  -Name 'Mail' 
     Unpin-App  -Name 'Microsoft Store'
 
-    #Set-PinnedApplication -Action 'PintoStartMenu' -FilePath "$envProgramFilesX86\IBM\Lotus\Notes\notes.exe"
-
-
     $NetworkConnection = @{
       TargetPath       = 'explorer.exe'
       Arguments        = '::{7007ACC7-3202-11D1-AAD2-00805FC1270E}'
@@ -243,7 +204,6 @@ Try
       Path             = "$(Join-Path -Path  $env:USERPROFILE -ChildPath 'Desktop')\Network Connections.lnk"
     }
     New-Shortcut @NetworkConnection
-
     
     $ControlPanel = @{
       TargetPath       = 'RunDll32.exe '
@@ -254,8 +214,7 @@ Try
       Path             = "$(Join-Path -Path  $env:USERPROFILE -ChildPath 'Desktop')\Control Panel.lnk"
     }
     New-Shortcut @ControlPanel
-    
-    
+        
     Invoke-AddWindowsFeatures -feature @(
       'NetFx3'
     )
@@ -373,7 +332,6 @@ Try
         Description = 'Show file operations details'
       }
     )
-
     		
     # Color and theme settings
     $registerKeys += @(
@@ -646,7 +604,6 @@ Try
         Value       = 1
         Description = 'Show all tray icons'
       }
-
     )
     
     $registerKeys += @(
@@ -1309,7 +1266,7 @@ Try
         Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\AppPrivacy'
         Name        = 'LetAppsSyncWithDevices'
         Value       = 2
-        Description = 'App Privacy	Sync with devices'
+        Description = 'App Privacy sync with devices'
       }
       @{
         Key         = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\AppCompat'
@@ -1396,7 +1353,6 @@ Try
         Description = 'Microsoft Edge Always send do not track'
       }
     )
-					
 					
     $registerKeys += @(
       @{
@@ -1541,9 +1497,7 @@ Try
     Set-DEPOptOut
        
     Disable-WindowsDefender 
-        
-    Uninstall-OneDrive
-        
+       
     Remove-BuiltInPrinters
    
     Set-HomeLocation
